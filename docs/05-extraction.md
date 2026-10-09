@@ -66,10 +66,33 @@ precision/recall must be measured against a hand-labelled sample of the real tim
 the inconsistent `12.15 a.m. to 01.15 p.m.` row, `509 old`, `702-B`, missing room) in PDF, scanned
 PDF, PNG, XLSX, CSV and DOCX, plus corrupt and no-table files. Tests PDF-01…PDF-16 run on them.
 
+## Real-PDF tuning (parser 1.1.0)
+
+What the college PDF showed, and the generic rule each case led to (no file-specific code):
+
+| Observed in the real PDF | Rule added |
+|---|---|
+| Whole page is ONE ruled table: title row (`W.E.F. … / AY … / SE BTech (Division-A)`) above the weekday row, legend below the last time row | `extraction/layout.py` splits every grid into heading rows (→ section heading), body, and legend rows (from the first `Faculties:` / `Subjects:` marker) |
+| Legend cells are `ABBR: Name` in one cell; the marker row decides which columns are faculty vs subject | Column-aware legend parsing; merged legend cells with several pairs on one line are split |
+| A page's legend omits codes used on it (e.g. `PJB`, `GS` on page 1) | Other pages of the *same document* are a fallback, marked `LEGEND_FROM_OTHER_PAGE` (INFO) |
+| `Open Elective` heading line over several options; `OE`/`PE`/`MDM` electives in parallel | Options get `PARALLEL_OPTION`; they are not reported as batch clashes; items stacked in one cell aren't either |
+| `PE III-TSDA -A`, `PE III-GenAI-E`, `AISC` vs legend `AI&SC` | Exactly one legend code inside a longer label → name filled, `COURSE_CODE_WITHIN_LABEL` (INFO); punctuation-only differences match; several/none → not guessed |
+| `(10:00 - 11:00 am)` inside a 9–11 merged cell | A cell time *inside* the cell's own rows is used (`TIME_FROM_CELL_WITHIN_SPAN`); outside it stays `EXPLICIT_TIME_CONFLICT` |
+| `Batch 2`, `Batch D`, `S.N. 1 to 60`, wrapped `…/AT/Batch` + `1/505`, `Data Sci.Lab` + `D4/ARN/…` | Group tokens and wrapped lines recognised |
+| `606-4 &5`, `703-A&B`, `HSS(609)`, `AT(Math)`, `LLC ()`, `MDM Lab()` | Multi-room labels, course(room), faculty(note), empty details kept as missing |
+
+Result on that file (10 pages, all parsed, text layer): **NEEDS_REVIEW**, 453 class entries,
+293 VERIFIED / 159 UNVERIFIED / 1 INCOMPLETE. What remains flagged is real: the `12.15 a.m.`
+noon row (86 entries, time uncertain), codes absent from every legend (`LA`, `ALA`, `HSS`, `MDM`,
+`IOT`, `PD`, `VM`), blank `LLC ()` / `MDM Lab()` cells, two cell times contradicting their rows,
+the different W.E.F. date on the M.Tech page, the combined BE A–D scope, and one M.Tech cell with
+no time label. These counts describe this one document — they are not an accuracy measurement.
+
 ## Known parser limits (be honest about these)
 
-* Only the synthetic layout has been tested. The real college PDF has not been processed yet;
-  expect tuning once it is added as a fixture.
+* Tuned on the synthetic fixtures **and one real document** (the college's 10-page ODD-2026
+  timetable, `backend/tests/fixtures/reference/college_timetable.pdf`). No labelled-sample
+  precision/recall has been measured yet, so no accuracy figure is claimed.
 * OCR and borderless layouts can't recover merged-cell spans and may misplace multi-line cells;
   such entries are always UNVERIFIED and should be reviewed.
 * Transposed layouts (days as rows) are supported in the grid parser but only lightly tested.

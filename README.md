@@ -21,7 +21,7 @@ React Native (Expo SDK 57, TypeScript strict)  ──HTTPS──▶  FastAPI (Py
 |---|---|
 | `backend/app/` | FastAPI app: `api/v1` routers, `security` (auth, RBAC policy), `services`, `extraction`, `query`, `worker.py`, `seed.py` |
 | `backend/alembic/` | Database migrations (`0001` schema, `0002` reference data, `0003` time-uncertainty flag) |
-| `backend/tests/` | 119 pytest tests (auth, extraction spec PDF-01…16, domains/isolation, Q01–Q30, academics, concurrency) |
+| `backend/tests/` | 131 pytest tests (auth, extraction spec PDF-01…16, real college PDF regression, domains/isolation, Q01–Q30, academics, concurrency) |
 | `mobile/src/app/` | Expo Router screens (auth, role tabs, search, timetable, archives, upload, review, admin) |
 | `mobile/src/{api,state,components,theme,lib}` | Typed API client, auth/domain state, design system, helpers |
 | `mobile/__tests__/`, `mobile/e2e/` | Jest unit/component tests; Playwright end-to-end smoke against the real API |
@@ -85,7 +85,7 @@ port 8000 on the same machine (`mobile/src/lib/config.ts`). Run the API on `0.0.
 ## Tests (results from the latest run)
 
 ```bash
-cd backend && .venv/bin/python -m pytest -q          # 119 passed
+cd backend && .venv/bin/python -m pytest -q          # 131 passed
 cd mobile  && npx tsc --noEmit && npx jest            # typecheck clean · 13 passed
 cd mobile  && npm run test:e2e -- http://localhost:8081 ./e2e-screens   # 21/21 checks (needs API + worker + web build)
 python scripts/load_smoke.py http://localhost:8000 24 15                 # concurrency smoke (not a benchmark)
@@ -120,7 +120,9 @@ Push notifications additionally require an EAS project id (`extra.eas.projectId`
 
 ## Next step: the college's real timetable
 
-Upload the real PDF as an Admin (Admin → Upload official timetable). The extraction is generic
-(no file-specific rules), but real documents always reveal new layout cases: review the validation
-summary, and send the PDF so it can be added as a regression fixture under
-`backend/tests/fixtures/reference/` and the parser tuned against it with a hand-labelled sample.
+The college's current timetable (10 pages: SE A–D, TE A–D, BE A–D combined, M.Tech) is now a
+regression fixture (`backend/tests/fixtures/reference/college_timetable.pdf`) and the parser was
+tuned against it with generic rules — see "Real-PDF tuning" in `docs/05-extraction.md`. It extracts
+as **NEEDS_REVIEW** (293 of 453 class entries VERIFIED); the rest carry genuine source problems for an
+Admin to review. Next: hand-label a sample to measure accuracy, and add the missing legend codes
+as master data.

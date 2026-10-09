@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from app.extraction.cellparse import BREAK_RE, parse_cell
+from app.extraction.layout import find_header
 from app.extraction.model import CandidateEntry, Finding, Grid, GridCell, SectionInfo
 from app.extraction.timeparse import (
     BREAK_WORDS_RE,
     ResolvedTime,
-    parse_day,
     parse_time_label,
     resolve_sequence,
 )
@@ -22,18 +22,7 @@ def _anchors(g: Grid) -> dict[tuple[int, int], GridCell]:
 
 
 def _find_header(g: Grid) -> tuple[int, dict[int, int]] | None:
-    """Returns (header_row, {column: iso_day}) for the first row naming >= 3 distinct weekdays."""
-    for r in range(min(g.n_rows, 5)):
-        cols: dict[int, int] = {}
-        for c in g.cells:
-            if c.row == r and c.text:
-                d = parse_day(c.text.split("\n")[0])
-                if d:
-                    for k in range(c.col, c.col + c.colspan):
-                        cols[k] = d
-        if len(set(cols.values())) >= 3:
-            return r, cols
-    return None
+    return find_header(g)
 
 
 def _batch_label(section: SectionInfo | None, subgroup: str | None) -> tuple[str | None, list[dict]]:
@@ -55,7 +44,8 @@ def _batch_label(section: SectionInfo | None, subgroup: str | None) -> tuple[str
     return level, msgs
 
 
-def parse_grid(g: Grid, section: SectionInfo | None, *, require_scope: bool, known_rooms: set[str]) -> tuple[list[CandidateEntry], list[Finding]]:
+def parse_grid(g: Grid, section: SectionInfo | None, *, require_scope: bool, known_rooms: set[str],
+               legend: dict | None = None) -> tuple[list[CandidateEntry], list[Finding]]:
     findings: list[Finding] = []
     hdr = _find_header(g)
     if hdr is None:
@@ -87,7 +77,8 @@ def parse_grid(g: Grid, section: SectionInfo | None, *, require_scope: bool, kno
                                 "No time labels were found for this table; its entries have no times.", g.page))
     resolved: dict[int, ResolvedTime] = dict(zip(body_rows, resolve_sequence(labels)))
 
-    legend = section.legend if section else {"faculty": {}, "subject": {}}
+    if legend is None:
+        legend = section.legend if section else {"faculty": {}, "subject": {}}
     tentative = bool(section and section.is_tentative)
     entries: list[CandidateEntry] = []
 
@@ -171,6 +162,18 @@ def _check_explicit(e: CandidateEntry, label) -> None:
         e.start_time, e.end_time = rt.start, rt.end
         e.time_uncertain = rt.uncertain
         e.messages.append({"severity": "INFO", "code": "TIME_FROM_CELL", "message": f"Time taken from the cell text '{label.raw}'."})
+        return
+    if (rt.start, rt.end) == (e.start_time, e.end_time):
+        return
+    if not e.time_uncertain and not rt.uncertain and e.start_time <= rt.start and rt.end <= e.end_time:
+        # A merged cell spanning several rows states the exact sub-period for this item.
+        e.messages.append({
+            "severity": "INFO", "code": "TIME_FROM_CELL_WITHIN_SPAN",
+            "message": f"Cell states {rt.start:%H:%M}–{rt.end:%H:%M}, inside the cell's rows "
+                       f"{e.start_time:%H:%M}–{e.end_time:%H:%M}; the cell's own time is used.",
+            "details": {"row_start": e.start_time.strftime("%H:%M"), "row_end": e.end_time.strftime("%H:%M")},
+        })
+        e.start_time, e.end_time = rt.start, rt.end
         return
     if (rt.start, rt.end) != (e.start_time, e.end_time):
         e.messages.append({

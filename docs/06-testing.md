@@ -27,7 +27,7 @@ python scripts/load_smoke.py http://localhost:8000 24 15
 
 | Suite | Result |
 |---|---|
-| Backend pytest | **119 passed** (≈30 s) |
+| Backend pytest | **131 passed** (≈30 s) |
 | Mobile TypeScript (`strict`, `noUnusedLocals`) | clean |
 | Mobile Jest | **13 passed** |
 | Expo export Android + iOS (Hermes bytecode) | both bundles compiled (5.6 MB / 5.4 MB) |
@@ -44,6 +44,7 @@ supported-user or capacity claim**. A real capacity test must run on the deploym
 |---|---|---|
 | Auth & sessions (`test_auth.py`, 13) | login, generic failure, suspended accounts, expired/garbage tokens, refresh rotation + reuse detection, logout, invitation activation, password reset, role change invalidates tokens, self-lockout prevention, timezone validation, login rate limit | role escalation, token expiry |
 | Extraction (`test_extraction.py`, 23) | all pages + provenance, grid/legends, tentative, combined divisions, stacked labs, legend-only expansion, room suffixes, inconsistent noon label, merged 2-hour lab, breaks/activities, missing room, effective date, scanned PDF OCR, corrupt PDF, no-table PDF, XLSX/CSV/DOCX/PNG through the same pipeline, DOCX merged cells, signature detection, time rules, cell grammar | PDF-01…PDF-13 |
+| Real college PDF (`test_reference_pdf.py`, 12) | 10 pages parsed; headings inside the table; column-split legends; legend rows not parsed as classes; plain + stacked labs; noon row flagged; electives as parallel options; cell time within span vs conflict; combined BE scope; wrapped/grouped tokens; missing info reported; upload → worker → DB → activate | PDF-01…PDF-16 on a real document |
 | Uploads & domains (`test_uploads_and_domains.py`, 13) | upload→worker→status, primary unchanged by upload, independent primaries, wrong-domain ID, IDOR incl. Admin, institutional upload Admin-only, activation + notification, unusable can't be primary, rejected files, idempotent upload + duplicate file, same file both domains, correction preserves original + audit, worker retry, soft-delete rules | API-03…06, PDF-14/15, T06, T09, T10 |
 | Query engine (`test_query_engine.py`, 57) | every intent Q01–Q30 (valid + negative paths), clarifications (AM/PM, date, week range, lunch, entity choice, confirmation, setup), working hours missing, inventory incomplete, unverified room, role restrictions, explicit archive, selection memory and domain switch, cross-domain rejection without querying, no fallback, disjoint results, SQL-injection text, raw SQL/unknown parameters, dashboard = typed query, history, saved searches, registry completeness | API-01, 02, 07–16; T01–T16 |
 | Academics & admin (`test_academics_admin.py`, 13) | fresher registration without duplicates, promotion preview/confirm with preserved history, transition rules (pause/resume/repeat/withdraw/re-enter/graduate), all-or-nothing batches, **concurrent promotions** (one wins), single active year, master-data validation, role matrix for admin endpoints, conflict detection (end-exclusive, POSSIBLE vs CONFIRMED, access), **concurrent activations**, notifications ownership, OpenAPI, validation envelope | FR-03, FR-20, FR-24 |
@@ -60,4 +61,6 @@ supported-user or capacity claim**. A real capacity test must run on the deploym
   `react-native-safe-area-context`, but not observed on hardware.
 * SMTP email delivery — no mail server configured.
 * Docker image build — no Docker daemon available (compose file syntax validated).
-* Extraction accuracy on the **real** college PDF — not yet supplied.
+* Extraction accuracy on the **real** college PDF — regression-tested (`tests/test_reference_pdf.py`,
+  hand-read expectations for sections, legends, specific cells and flags), but precision/recall
+  against a fully labelled sample has not been measured.

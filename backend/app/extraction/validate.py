@@ -52,6 +52,12 @@ def _is_division_of(a: str, b: str) -> bool:
     return b.startswith(a) and len(b) == len(a) + 1 and b[-1].isdigit()
 
 
+def _same_cell(a: CandidateEntry, b: CandidateEntry) -> bool:
+    ra, rb = a.region or {}, b.region or {}
+    return (a.page == b.page and ra.get("grid_row") is not None
+            and (ra.get("grid_row"), ra.get("grid_col")) == (rb.get("grid_row"), rb.get("grid_col")))
+
+
 def document_checks(entries: list[CandidateEntry]) -> list[Finding]:
     findings: list[Finding] = []
     seen_exact: dict[tuple, int] = {}
@@ -92,6 +98,8 @@ def document_checks(entries: list[CandidateEntry]) -> list[Finding]:
                     continue
                 if "batch" in (ea.course_label or "").lower() and "batch" in (eb.course_label or "").lower():
                     continue  # parallel elective groups
+                if _same_cell(ea, eb) or (ea.has_code("PARALLEL_OPTION") and eb.has_code("PARALLEL_OPTION")):
+                    continue  # stacked in one cell / elective options: listed together on purpose
                 for x in (ea, eb):
                     if not x.has_code("POSSIBLE_BATCH_OVERLAP"):
                         x.messages.append({"severity": "WARNING", "code": "POSSIBLE_BATCH_OVERLAP",

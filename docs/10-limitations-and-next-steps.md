@@ -4,7 +4,7 @@
 
 | Item | Status | Next step |
 |---|---|---|
-| Real college timetable PDF | Not supplied yet; parser tuned only on synthetic fixtures | Add it under `backend/tests/fixtures/reference/`, hand-label a sample (≥2 pages), measure precision/recall per field, tune |
+| Real college timetable PDF | Added as a regression fixture; parser tuned (NEEDS_REVIEW, 293/453 classes VERIFIED, remaining flags are genuine source issues — see `docs/05-extraction.md`) | Hand-label ≥2 pages field by field and measure precision/recall; add the codes missing from the legends (`LA`, `ALA`, `HSS`, `MDM`, `PD`, `VM`) as master data/aliases |
 | Android device / emulator run | JS bundle compiles; UI exercised on the web target only | `npx expo start` → Android emulator; run through `docs/09-demo-script.md` |
 | iOS simulator / device run | iOS JS bundle compiles; no macOS/Xcode available | `npx eas-cli build --profile simulator -p ios` or `npx expo run:ios` on a Mac |
 | Push notifications | Code path implemented; not delivered (needs EAS project id + device) | `eas init`, set `extra.eas.projectId`, `EXPO_PUSH_ENABLED=true` |
@@ -31,7 +31,7 @@
 
 ## Suggested roadmap
 
-1. Real-PDF fixture + labelled sample + parser tuning; measure and publish accuracy honestly.
+1. Labelled sample of the real PDF; measure and publish per-field accuracy honestly.
 2. Institutional SSO (OIDC) mapped onto `auth_subject`.
 3. Device test matrix (small Android, large Android, iPhone SE, iPhone Pro Max; dark mode; large text).
 4. Admin bulk import of students/staff/rooms from CSV.

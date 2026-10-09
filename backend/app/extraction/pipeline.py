@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from app.extraction import office, pdf
 from app.extraction.gridparse import parse_grid
+from app.extraction.layout import split_layout
 from app.extraction.model import ExtractionResult, Finding, SectionInfo
 from app.extraction.sections import parse_heading, parse_legend
 from app.extraction.validate import assign_status, document_checks
@@ -50,7 +51,9 @@ def run_extraction(data: bytes, fmt: str, *, require_scope: bool, known_rooms: s
     known_rooms = known_rooms or set()
     sections: list[SectionInfo] = []
     entries = []
+    prepared = []
     for key, g in enumerate(grids):
+        g = split_layout(g)
         head = parse_heading(g.header_text)
         legend = parse_legend("\n".join([g.context_text, g.header_text]), g.legend_rows)
         sec = SectionInfo(
@@ -60,6 +63,15 @@ def run_extraction(data: bytes, fmt: str, *, require_scope: bool, known_rooms: s
             academic_year_label=head["academic_year_label"], term_label=head["term_label"],
         )
         sections.append(sec)
+        prepared.append((g, sec, head))
+    # Legends of the document's other pages: a labelled fallback when a page's own legend omits a code.
+    doc_legend: dict[str, dict[str, str]] = {"faculty": {}, "subject": {}}
+    for sec in sections:
+        for kind in ("faculty", "subject"):
+            for code, name in sec.legend.get(kind, {}).items():
+                doc_legend[kind].setdefault(code, name)
+
+    for g, sec, head in prepared:
         if sec.is_tentative:
             findings.append(Finding("SECTION_FLAG", "TENTATIVE_SECTION",
                                     f"Section '{sec.title or 'page ' + str(g.page)}' is marked Tentative.", g.page))
@@ -69,7 +81,8 @@ def run_extraction(data: bytes, fmt: str, *, require_scope: bool, known_rooms: s
         if require_scope and not sec.program_level and not sec.divisions:
             findings.append(Finding("CRITICAL", "SECTION_HEADING_UNREADABLE",
                                     "The section heading (class/division) could not be read for this table.", g.page))
-        es, fs = parse_grid(g, sec, require_scope=require_scope, known_rooms=known_rooms)
+        cell_legend = {**sec.legend, "doc_faculty": doc_legend["faculty"], "doc_subject": doc_legend["subject"]}
+        es, fs = parse_grid(g, sec, require_scope=require_scope, known_rooms=known_rooms, legend=cell_legend)
         entries += es
         findings += fs
 
