@@ -6,7 +6,7 @@ entries, merged two-hour labs, breaks, an inconsistent '12.15 a.m.' row label). 
 college's real timetable; all names/codes are invented. The real reference PDF should be added
 as an additional fixture (tests/fixtures/reference/) once supplied.
 
-Run:  python -m tests.fixtures.make_fixtures
+Run:  python -m app.devdata.synthetic [out_dir]
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import io
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "generated")
+OUT = os.path.join(os.getcwd(), "var", "synthetic")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 TIMES = ["9.00 a.m. to 10.00 a.m.", "10.00 a.m. to 11.00 a.m.", "11.00 a.m. to 11.15 a.m.",
@@ -213,4 +213,6 @@ def main(out: str | None = None) -> str:
 
 
 if __name__ == "__main__":
-    print("fixtures written to", main())
+    import sys
+
+    print("fixtures written to", main(sys.argv[1] if len(sys.argv) > 1 else None))

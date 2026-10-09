@@ -51,23 +51,30 @@ def _schema():
     yield
 
 
-@pytest.fixture(autouse=True)
-def _clean():
-    ratelimit.reset()
-    Clock.freeze(None)
+def truncate_all() -> None:
     with get_engine().begin() as c:
         tables = [r[0] for r in c.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public'"))]
         c.execute(text("TRUNCATE " + ", ".join(t for t in tables if t not in KEEP) + " RESTART IDENTITY CASCADE"))
         c.execute(text("INSERT INTO institutional_timetable_settings (settings_id, version) VALUES (1, 1)"))
         c.execute(text("INSERT INTO institution_config (config_id, next_class_lookahead_days) VALUES (1, 7)"))
+
+
+@pytest.fixture(autouse=True)
+def _clean(request):
+    """Fresh database per test, except modules that declare SHARED_DB = True (they seed once)."""
+    ratelimit.reset()
+    if not getattr(request.module, "SHARED_DB", False):
+        Clock.freeze(None)
+        truncate_all()
     yield
-    Clock.freeze(None)
+    if not getattr(request.module, "SHARED_DB", False):
+        Clock.freeze(None)
 
 
 @pytest.fixture(scope="session")
 def fx():
     """Generated SYNTHETIC fixtures (see tests/fixtures/make_fixtures.py)."""
-    from tests.fixtures.make_fixtures import main
+    from app.devdata.synthetic import main
 
     out = main(tempfile.mkdtemp(prefix="tt-fixtures-"))
 

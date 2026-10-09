@@ -26,9 +26,16 @@ class MasterIndex:
         return set(self.room)
 
 
-def load_index(db: Session) -> MasterIndex:
+def load_index(db: Session, department_id: int | None = None) -> MasterIndex:
+    """When the timetable belongs to a department, batches/courses of *other* departments are not
+    candidates (a CE timetable's "SE-A" is CE's SE-A). Department-less courses stay eligible."""
     ix = MasterIndex()
-    for c in db.scalars(select(Course).where(Course.is_active.is_(True))):
+    cq = select(Course).where(Course.is_active.is_(True))
+    bq = select(Batch).where(Batch.is_active.is_(True))
+    if department_id is not None:
+        cq = cq.where((Course.department_id == department_id) | Course.department_id.is_(None))
+        bq = bq.where(Batch.department_id == department_id)
+    for c in db.scalars(cq):
         if c.course_code:
             ix.course[normalize_label(c.course_code)].add(c.course_id)
         ix.course[normalize_label(c.name)].add(c.course_id)
@@ -38,13 +45,19 @@ def load_index(db: Session) -> MasterIndex:
         ix.staff_names[normalize_person(u.display_name)].add(s.staff_id)
     for r in db.scalars(select(Room).where(Room.is_active.is_(True))):
         ix.room[normalize_label(r.room_code)].add(r.room_id)
-    for b in db.scalars(select(Batch).where(Batch.is_active.is_(True))):
+    allowed_batches = set(db.scalars(select(Batch.batch_id).where(bq.whereclause))) if department_id is not None else None
+    allowed_courses = set(db.scalars(select(Course.course_id).where(cq.whereclause))) if department_id is not None else None
+    for b in db.scalars(bq):
         ix.batch[normalize_label(b.code)].add(b.batch_id)
     for a in db.scalars(select(EntityAlias)):
         target = {"COURSE": ix.course, "STAFF": ix.staff, "ROOM": ix.room, "BATCH": ix.batch}[a.entity_type]
         try:
             ent = int(a.entity_id) if a.entity_type != "STAFF" else uuid.UUID(a.entity_id)
         except ValueError:
+            continue
+        if a.entity_type == "BATCH" and allowed_batches is not None and ent not in allowed_batches:
+            continue
+        if a.entity_type == "COURSE" and allowed_courses is not None and ent not in allowed_courses:
             continue
         target[a.alias_normalized].add(ent)
     return ix

@@ -92,7 +92,7 @@ def persist(db: Session, domain: Domain, tt, result) -> tuple[ProcessingStatus, 
         db.flush()
         section_ids[s.key] = row.section_id
 
-    index = load_index(db) if institutional else None
+    index = load_index(db, tt.department_id) if institutional else None
     entry_rows = []
     for e in result.entries:
         ids = {}

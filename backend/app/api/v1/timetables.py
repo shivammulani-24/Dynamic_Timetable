@@ -375,7 +375,7 @@ def remap(timetable_id: str, a: Principal = Depends(require_admin), db: Session 
 
     tt = get_timetable(db, a, Domain.INSTITUTIONAL, timetable_id, for_update=True)
     m = models_for(Domain.INSTITUTIONAL)
-    ix = load_index(db)
+    ix = load_index(db, tt.department_id)
     changed = 0
     for e in db.scalars(select(m.entry).where(m.entry.timetable_id == tt.timetable_id)).unique():
         if e.is_corrected or e.verification_status == VerificationStatus.REJECTED or e.entry_kind != EntryKind.CLASS:

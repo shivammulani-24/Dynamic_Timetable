@@ -59,8 +59,13 @@ INTENT_ROLE_RESTRICTIONS: dict[str, frozenset[RoleCode]] = {
     "ROOMS_WITH_CLASSES_AFTER_TIME": _MONITORING,
 }
 
-# Free-room / room schedules describe facilities, not people; any role may ask (scope-free).
-SCOPE_FREE_INTENTS = frozenset({"FIND_FREE_ROOMS", "ROOM_FREE_NOW", "ROOM_SCHEDULE", "ROOM_SCHEDULE_FOR_DAY"})
+# Evaluated against the whole selected institutional timetable regardless of batch/department scope:
+# * room intents describe facilities, not people;
+# * professor free-time / scheduled location must see the professor's *complete* schedule,
+#   otherwise a student would be told "free all day" just because the busy slots are for other
+#   batches. They reveal only busy/free or the current scheduled room, not other batches' details.
+SCOPE_FREE_INTENTS = frozenset({"FIND_FREE_ROOMS", "ROOM_FREE_NOW", "ROOM_SCHEDULE", "ROOM_SCHEDULE_FOR_DAY",
+                                "PROFESSOR_FREE_TIME", "PROFESSOR_SCHEDULED_LOCATION"})
 
 
 def intent_allowed(p: Principal, intent: str) -> bool:
