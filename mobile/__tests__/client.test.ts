@@ -4,7 +4,7 @@ import { clearSession, currentSession, saveSession } from '@/api/tokenStore';
 type Reply = { status: number; body: unknown };
 function mockFetch(replies: Reply[] | ((url: string, init: RequestInit) => Reply)) {
   const calls: { url: string; init: RequestInit }[] = [];
-  (global as any).fetch = jest.fn(async (url: string, init: RequestInit) => {
+  (globalThis as any).fetch = jest.fn(async (url: string, init: RequestInit) => {
     calls.push({ url, init });
     const r = typeof replies === 'function' ? replies(url, init) : replies.shift()!;
     const text = JSON.stringify(r.body);
@@ -82,7 +82,7 @@ test('search envelopes with 4xx are returned, not thrown', async () => {
 });
 
 test('network failure becomes NETWORK_ERROR', async () => {
-  (global as any).fetch = jest.fn(async () => { throw new TypeError('Network request failed'); });
+  (globalThis as any).fetch = jest.fn(async () => { throw new TypeError('Network request failed'); });
   const err = (await request('/me').catch((e) => e)) as ApiError;
   expect(err.code).toBe('NETWORK_ERROR');
   expect(err.isNetwork).toBe(true);

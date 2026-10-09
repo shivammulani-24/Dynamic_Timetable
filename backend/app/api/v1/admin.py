@@ -37,9 +37,9 @@ from app.services.matching import normalize_label
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-def _commit(db: Session, what: str) -> None:
+def _commit(db: Session, what: str, *, flush_only: bool = False) -> None:
     try:
-        db.commit()
+        db.flush() if flush_only else db.commit()
     except IntegrityError as e:
         db.rollback()
         raise AppError(Code.CONFLICT, f"This {what} conflicts with an existing record (duplicate or still referenced).",
@@ -68,7 +68,7 @@ def list_departments(_: Principal = Depends(require_admin), db: Session = Depend
 def create_department(body: DepartmentIn, a: Principal = Depends(require_admin), db: Session = Depends(get_db)):
     d = Department(code=body.code.strip().upper(), name=body.name.strip(), is_active=body.is_active)
     db.add(d)
-    db.flush()
+    _commit(db, "record", flush_only=True)
     audit(db, "DEPARTMENT_CREATED", a.user_id, "DEPARTMENT", d.department_id)
     _commit(db, "department")
     return _dept(d)
@@ -115,7 +115,7 @@ def create_year(body: AcademicYearIn, a: Principal = Depends(require_admin), db:
         _close_active(db)
     y = AcademicYear(**body.model_dump())
     db.add(y)
-    db.flush()
+    _commit(db, "record", flush_only=True)
     audit(db, "ACADEMIC_YEAR_CREATED", a.user_id, "ACADEMIC_YEAR", y.academic_year_id, label=y.label)
     _commit(db, "academic year")
     return _ay(y)
@@ -182,7 +182,7 @@ def create_batch(body: BatchIn, a: Principal = Depends(require_admin), db: Sessi
     _check_batch(db, body)
     b = Batch(**{**body.model_dump(), "code": body.code.strip().upper()})
     db.add(b)
-    db.flush()
+    _commit(db, "record", flush_only=True)
     audit(db, "BATCH_CREATED", a.user_id, "BATCH", b.batch_id)
     _commit(db, "batch")
     return _batch(b)
@@ -223,7 +223,7 @@ def list_courses(_: Principal = Depends(require_admin), db: Session = Depends(ge
 def create_course(body: CourseIn, a: Principal = Depends(require_admin), db: Session = Depends(get_db)):
     c = Course(**{**body.model_dump(), "course_code": (body.course_code or "").strip().upper() or None})
     db.add(c)
-    db.flush()
+    _commit(db, "record", flush_only=True)
     audit(db, "COURSE_CREATED", a.user_id, "COURSE", c.course_id)
     _commit(db, "course")
     return _course(c)
@@ -265,7 +265,7 @@ def list_rooms(_: Principal = Depends(require_admin), db: Session = Depends(get_
 def create_room(body: RoomIn, a: Principal = Depends(require_admin), db: Session = Depends(get_db)):
     r = Room(**{**body.model_dump(), "room_code": body.room_code.strip()})
     db.add(r)
-    db.flush()
+    _commit(db, "record", flush_only=True)
     audit(db, "ROOM_CREATED", a.user_id, "ROOM", r.room_id)
     _commit(db, "room")
     return _room(r)
@@ -315,7 +315,7 @@ def create_alias(body: AliasIn, a: Principal = Depends(require_admin), db: Sessi
     x = EntityAlias(entity_type=body.entity_type.value, alias=body.alias.strip(), alias_normalized=normalize_label(body.alias),
                     entity_id=body.entity_id, created_by_user_id=a.user_id)
     db.add(x)
-    db.flush()
+    _commit(db, "record", flush_only=True)
     audit(db, "ALIAS_CREATED", a.user_id, "ALIAS", x.alias_id, entity_type=x.entity_type)
     _commit(db, "alias")
     return {"alias_id": x.alias_id, "entity_type": x.entity_type, "alias": x.alias, "entity_id": x.entity_id}

@@ -65,19 +65,29 @@ def load_vocab(db: Session, ctx: SearchContext) -> Vocab:
     aliases: dict[tuple[str, str], list[str]] = {}
     for a in db.scalars(select(EntityAlias)):
         aliases.setdefault((a.entity_type, a.entity_id), []).append(a.alias)
-    # courses
-    for cid, raw, name in db.execute(select(m.entry.course_id, m.course_label, m.entry.course_name_resolved).where(*base).distinct()):
+
+    # One query per entity type (no N+1): distinct label/id pairs, then the referenced master rows.
+    course_rows = db.execute(select(m.entry.course_id, m.course_label, m.entry.course_name_resolved).where(*base).distinct()).all()
+    staff_rows = db.execute(select(m.entry.staff_id, m.staff_label, m.entry.staff_name_resolved).where(*base).distinct()).all()
+    batch_rows = db.execute(select(m.entry.batch_id, m.batch_label).where(*base).distinct()).all()
+    room_rows = db.execute(select(m.entry.room_id, m.room_label).where(*base).distinct()).all()
+    courses = {c.course_id: c for c in db.scalars(select(Course).where(Course.course_id.in_({r[0] for r in course_rows if r[0]})))}
+    staff = {s.staff_id: (s, u) for s, u in db.execute(
+        select(Staff, UserAccount).join(UserAccount, UserAccount.user_id == Staff.user_id)
+        .where(Staff.staff_id.in_({r[0] for r in staff_rows if r[0]})))}
+    batches = {b.batch_id: b for b in db.scalars(select(Batch).where(Batch.batch_id.in_({r[0] for r in batch_rows if r[0]})))}
+    rooms = {r.room_id: r for r in db.scalars(select(Room).where(Room.room_id.in_({r[0] for r in room_rows if r[0]})))}
+
+    for cid, raw, name in course_rows:
         if cid:
-            c = db.get(Course, cid)
+            c = courses[cid]
             v.courses.append(_cand("id", str(cid), c.name, [c.course_code, raw, name, *aliases.get(("COURSE", str(cid)), [])],
                                    c.course_code))
         elif raw:
             v.courses.append(_cand("label", normalize_label(raw), name or raw, [raw, name]))
-    # professors
-    for sid, raw, name in db.execute(select(m.entry.staff_id, m.staff_label, m.entry.staff_name_resolved).where(*base).distinct()):
+    for sid, raw, name in staff_rows:
         if sid:
-            s = db.get(Staff, sid)
-            u = db.get(UserAccount, s.user_id)
+            s, u = staff[sid]
             codes = [c for c in [s.short_code, raw] if c]
             v.professors.append(_cand("id", str(sid), u.display_name, [s.short_code, raw, name, *aliases.get(("STAFF", str(sid)), [])],
                                       s.designation, codes=codes))
@@ -87,17 +97,15 @@ def load_vocab(db: Session, ctx: SearchContext) -> Vocab:
             for i, code in enumerate(parts):
                 disp = names[i] if len(names) == len(parts) else (name if len(parts) == 1 and name else code)
                 v.professors.append(_cand("label", normalize_label(code), disp, [code, disp], code, codes=[code]))
-    # batches
-    for bid, raw in db.execute(select(m.entry.batch_id, m.batch_label).where(*base).distinct()):
+    for bid, raw in batch_rows:
         if bid:
-            b = db.get(Batch, bid)
+            b = batches[bid]
             v.batches.append(_cand("id", str(bid), b.code, [raw, *aliases.get(("BATCH", str(bid)), [])], b.cohort_label))
         elif raw:
             v.batches.append(_cand("label", normalize_label(raw), raw, [raw]))
-    # rooms
-    for rid, raw in db.execute(select(m.entry.room_id, m.room_label).where(*base).distinct()):
+    for rid, raw in room_rows:
         if rid:
-            r = db.get(Room, rid)
+            r = rooms[rid]
             v.rooms.append(_cand("id", str(rid), r.room_code, [raw, *aliases.get(("ROOM", str(rid)), [])],
                                  f"Floor {r.floor_label}" if r.floor_label else None))
         elif raw:
