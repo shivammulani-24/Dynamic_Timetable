@@ -47,6 +47,51 @@ def _is_division_pair(a: E, b: E) -> bool:
     return la != lb and (lb.startswith(la) or la.startswith(lb))
 
 
+def _codes(e: E) -> set[str]:
+    return {m.get("code") for m in (e.validation_messages or [])}
+
+
+def _same_source_cell(a: E, b: E) -> bool:
+    ra, rb = a.source_region or {}, b.source_region or {}
+    return (a.source_page == b.source_page and ra.get("grid_row") is not None
+            and (ra.get("grid_row"), ra.get("grid_col")) == (rb.get("grid_row"), rb.get("grid_col")))
+
+
+def _same_session(a: E, b: E) -> bool:
+    """One session printed on several pages of the same year (e.g. a minor shared by TE A–D):
+    same times, same faculty, same room, same course."""
+    if (a.start_time, a.end_time) != (b.start_time, b.end_time):
+        return False
+    def level(e: E) -> str:
+        return (e.batch_label_raw or "").split("-")[0].strip().upper()
+    if not level(a) or level(a) != level(b):
+        return False   # divisions of one year share sessions; different years in one room clash
+    def codes(e: E) -> set[str]:
+        return {normalize_label(x) for x in (e.staff_label_raw or "").split("+") if x.strip()}
+    # "AQ+VG" and "VG" in the same room at the same time: one combined lecture
+    staff = (a.staff_id and a.staff_id == b.staff_id) or bool(codes(a) & codes(b))
+    room = (a.room_id and a.room_id == b.room_id) or (
+        a.room_label_raw and normalize_label(a.room_label_raw) == normalize_label(b.room_label_raw))
+    course = (a.course_id and a.course_id == b.course_id) or (
+        normalize_label(a.course_label_raw) == normalize_label(b.course_label_raw))
+    return bool(staff and room and course)
+
+
+def _intended(kind: str, a: E, b: E) -> bool:
+    """Overlaps the source lays out on purpose — the same rules the extractor applies:
+    items stacked in one cell, parallel elective/minor options, a sub-group's own written period,
+    and one session listed on several division pages."""
+    if _same_source_cell(a, b) or _same_session(a, b):
+        return True
+    ca, cb = _codes(a), _codes(b)
+    if kind == "BATCH":
+        if "PARALLEL_OPTION" in ca and "PARALLEL_OPTION" in cb:
+            return True
+        if "SUBGROUP_DURING_DIVISION_CLASS" in ca | cb:
+            return True
+    return False
+
+
 def _short(e: E) -> dict[str, Any]:
     lab = entry_labels(e)
     return {"entry_id": str(e.entry_id), "day_of_week": e.day_of_week, "start_time": e.start_time.strftime("%H:%M"),
@@ -101,13 +146,15 @@ def detect(db: Session, timetable_id, department_ids: set[int] | None = None) ->
                 if b.start_time >= a.end_time:
                     break
                 if overlaps(a, b) and a.entry_id != b.entry_id:
+                    if _intended(kind, a, b):
+                        continue
                     if kind == "BATCH" and "batch" in (a.course_label_raw or "").lower() and "batch" in (b.course_label_raw or "").lower():
                         continue  # parallel elective groups
                     add(kind, a, b, key.startswith("id:"))
     for es in by_day.values():
         for i, a in enumerate(es):
             for b in es[i + 1:]:
-                if overlaps(a, b) and _is_division_pair(a, b):
+                if overlaps(a, b) and _is_division_pair(a, b) and not _intended("BATCH", a, b):
                     add("BATCH", a, b, False)
 
     conflicts.sort(key=lambda c: (c["confidence"] != "CONFIRMED", c["type"], c["entries"][0]["day_of_week"], c["entries"][0]["start_time"]))

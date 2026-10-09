@@ -5,6 +5,7 @@ receives both domains' models at once, which is how "never union/join across dom
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -61,12 +62,37 @@ def models_for(domain: Domain | str) -> DomainModels:
     return INSTITUTIONAL if Domain(domain) == Domain.INSTITUTIONAL else PERSONAL
 
 
+_GROUP = re.compile(r"\((?:batch|s\.?\s*n)[^)]*\)\s*$", re.I)
+_PRACTICAL = re.compile(r"\b(lab|laboratory|practical|tutorial)\b", re.I)
+
+
+def _course_display(entry: Any) -> str | None:
+    """Course name for people: the subject's name, keeping what the printed label adds —
+    "(Lab)"/"(Tutorial)", "(Open Elective)" and the student group ("(Batch1)")."""
+    printed = entry.course_label_raw or ""
+    resolved = entry.course_name_resolved
+    name = entry.course.name if entry.course else None
+    if name and resolved and resolved.lower().startswith(name.lower()):
+        name = resolved                                   # "Data Structures (Lab)"
+    elif name:
+        kind = _PRACTICAL.search(printed)
+        if kind and kind.group(0).lower() not in name.lower():
+            name = f"{name} ({kind.group(0).title()})"
+    else:
+        name = resolved or printed or None
+    group = _GROUP.search(printed)
+    if name and group and group.group(0).strip() not in name:
+        name = f"{name} {group.group(0).strip()}"
+    return name
+
+
 def entry_labels(entry: Any) -> dict[str, str | None]:
-    """Uniform view of an entry's labels for serialisation."""
+    """Uniform view of an entry's labels for serialisation. `course_code` is the label exactly as
+    printed in the timetable (e.g. "PE III-TSDA -A"), so students can match it to the paper copy."""
     if isinstance(entry, InstitutionalTimetableEntry):
         return {
-            "course": entry.course.name if entry.course else (entry.course_name_resolved or entry.course_label_raw),
-            "course_code": entry.course.course_code if entry.course else entry.course_label_raw,
+            "course": _course_display(entry),
+            "course_code": entry.course_label_raw or (entry.course.course_code if entry.course else None),
             "professor": entry.staff.user.display_name if entry.staff else (entry.staff_name_resolved or entry.staff_label_raw),
             "professor_code": entry.staff_label_raw,
             "batch": entry.batch.code if entry.batch else entry.batch_label_raw,

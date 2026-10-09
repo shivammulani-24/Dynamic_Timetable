@@ -47,6 +47,7 @@ class ParsedItem:
     subgroup: str | None = None          # e.g. "A1"
     group_label: str | None = None       # e.g. "Batch1" for electives
     category: str | None = None          # e.g. "Open Elective" heading line above the item
+    details_blank: bool = False          # "LLC ()": the source deliberately gives no faculty/room
     room_label: str | None = None
     explicit_time: TimeLabel | None = None
     unparsed: list[str] = field(default_factory=list)
@@ -87,8 +88,15 @@ def _split_chunks(text: str) -> list[tuple[str, str | None]]:
         chunks: list[list] = []
         pending: list[str] = []
         category: str | None = None
+        timed_upto = 0   # chunks before this index already received a "(…time…)" line
         for n, ln in enumerate(joined):
             nxt = joined[n + 1] if n + 1 < len(joined) else ""
+            if ln.startswith("(") and "/" not in ln and parse_inline_range(ln) and len(chunks) > timed_upto and not pending:
+                # "(02:15 PM-03:15 PM)" on its own line times every item listed since the previous time line
+                for ch in chunks[timed_upto:]:
+                    ch[0] += " " + ln
+                timed_upto = len(chunks)
+                continue
             if "/" in ln:
                 chunks.append([" ".join(pending + [ln]), category])
                 pending = []
@@ -182,6 +190,8 @@ def parse_cell(text: str, legend: dict[str, dict[str, str]], known_rooms: set[st
         if explicit:
             item.explicit_time = explicit
             chunk = re.sub(r"\([^)]*\d[^)]*\)", " ", chunk)
+        if EMPTY_PARENS.search(chunk) and "/" not in chunk:
+            item.details_blank = True
         chunk = EMPTY_PARENS.sub(" ", chunk)
         tokens = [_clean(t) for t in re.split(r"/|\n", chunk)]
         tokens = [t for t in tokens if t]
@@ -190,6 +200,7 @@ def parse_cell(text: str, legend: dict[str, dict[str, str]], known_rooms: set[st
             cr = COURSE_ROOM_RE.match(tokens[0])
             if cr and ROOM_RE.match(cr.group(2)):          # "HSS(609)" → course HSS, room 609
                 tokens[0:1] = [cr.group(1).strip(), cr.group(2)]
+                item.details_blank = len(tokens) == 2          # the source names no faculty
         for idx, tok in enumerate(tokens):
             norm_room = re.sub(r"[^0-9a-z]", "", tok.lower())
             note = NOTE_RE.search(tok) if idx > 0 else None
@@ -240,14 +251,17 @@ def parse_cell(text: str, legend: dict[str, dict[str, str]], known_rooms: set[st
                 base = _clean(LAB_WORDS.sub("", course))
                 hit_base = lg.find(base, "subject", item) if base and base != course else None
                 if hit_base:
+                    item.messages.append({"severity": "INFO", "code": "COURSE_CODE_BASE", "details": {"code": hit_base[0]},
+                                          "message": f"'{course}' is a lab/tutorial of subject '{hit_base[0]}'."})
                     lab = LAB_WORDS.search(course)
                     item.course_name = hit_base[1] + (f" ({lab.group(0).title()})" if lab else "")
                 else:
                     inner = _code_within(course, lg.page["subject"]) or _code_within(course, lg.doc["subject"])
                     if inner:
                         item.course_name = inner[1]
-                        item.warn("INFO", "COURSE_CODE_WITHIN_LABEL",
-                                  f"Subject '{inner[0]}' recognised inside the label '{course}'; label kept as written.")
+                        item.messages.append({
+                            "severity": "INFO", "code": "COURSE_CODE_WITHIN_LABEL", "details": {"code": inner[0]},
+                            "message": f"Subject '{inner[0]}' recognised inside the label '{course}'; label kept as written."})
             else:
                 item.course_name = hit[1]
         if item.category:
@@ -258,16 +272,21 @@ def parse_cell(text: str, legend: dict[str, dict[str, str]], known_rooms: set[st
         if not item.course_label:
             item.warn("WARNING", "COURSE_MISSING", "No course/subject label could be identified in this cell.")
         elif not item.course_name and lg.has("subject"):
-            item.warn("WARNING", "COURSE_ABBREVIATION_UNKNOWN",
-                      f"'{item.course_label}' is not in this document's subject legend; kept as written.")
-        if not item.staff_labels:
+            # The code is shown exactly as printed; it is simply not expanded.
+            item.warn("INFO", "COURSE_ABBREVIATION_UNKNOWN",
+                      f"'{item.course_label}' is not in this document's subject legend; shown as written.")
+        if item.details_blank:
+            item.warn("INFO", "DETAILS_NOT_GIVEN",
+                      "The source gives only the course" + (" and room" if item.room_label else "")
+                      + " for this slot; no faculty is assigned.")
+        elif not item.staff_labels:
             item.warn("WARNING", "FACULTY_MISSING", "No faculty abbreviation found in this cell.")
         else:
             unknown = [x for x in item.staff_labels if x not in lg.page["faculty"] and x not in lg.doc["faculty"]]
             if unknown and lg.has("faculty"):
-                item.warn("WARNING", "FACULTY_ABBREVIATION_UNKNOWN",
-                          f"Faculty code(s) {', '.join(unknown)} not found in this document's legend.")
-        if not item.room_label:
+                item.warn("INFO", "FACULTY_ABBREVIATION_UNKNOWN",
+                          f"Faculty code(s) {', '.join(unknown)} not found in this document's legend; shown as written.")
+        if not item.room_label and not item.details_blank:
             item.warn("WARNING", "ROOM_MISSING", "No room label found in this cell.")
         if item.unparsed:
             item.warn("WARNING", "UNPARSED_TOKENS", f"Unrecognised text kept for review: {' / '.join(item.unparsed)}")

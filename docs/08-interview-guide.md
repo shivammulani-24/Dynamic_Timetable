@@ -38,8 +38,9 @@ resolves a single timetable in a single domain; composite foreign keys ensure a 
 primary is their own; non-owners get 404. There is no SQL anywhere that touches both entry tables.
 
 **How does the PDF pipeline handle messy timetables?** Everything becomes a grid; time labels are
-resolved as a *sequence* (rows must increase), so the source's "12.15 a.m." row is detected as
-inconsistent, kept with a suggested reading but marked uncertain — never silently fixed. Cells are
+resolved as a *sequence* (rows must increase). The college's "12.15 a.m. to 01.15 p.m." row is read
+as midday only because the rows before and after join it exactly; the raw label and a visible note are
+kept. A label that can't be proven that way stays uncertain — never silently fixed. Cells are
 parsed by token shape plus the page's own legend, so `DS Lab A1/AVN/604` becomes course DS (lab),
 faculty AVN, room 604, sub-group SE-A1. Uncertain entries are UNVERIFIED and excluded from
 "now/next/free" answers but still shown, flagged, in listings.

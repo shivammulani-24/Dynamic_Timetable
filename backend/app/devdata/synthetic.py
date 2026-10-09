@@ -2,9 +2,10 @@
 
 These files imitate the *layout traits* described in the PDF Extraction Specification (multiple
 sections per file, Tentative division, combined BE divisions, per-page legends, stacked lab
-entries, merged two-hour labs, breaks, an inconsistent '12.15 a.m.' row label). They are NOT the
-college's real timetable; all names/codes are invented. The real reference PDF should be added
-as an additional fixture (tests/fixtures/reference/) once supplied.
+entries, merged two-hour labs, breaks, a garbled '12.15 a.m. to 01.15 a.m.' row label that cannot be resolved
+without review). They are NOT the
+college's real timetable; all names/codes are invented. The college's real PDF is a separate fixture
+(tests/fixtures/reference/college_timetable.pdf).
 
 Run:  python -m app.devdata.synthetic [out_dir]
 """
@@ -19,7 +20,7 @@ OUT = os.path.join(os.getcwd(), "var", "synthetic")
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 TIMES = ["9.00 a.m. to 10.00 a.m.", "10.00 a.m. to 11.00 a.m.", "11.00 a.m. to 11.15 a.m.",
-         "11.15 a.m. to 12.15 p.m.", "12.15 a.m. to 01.15 p.m.", "01.15 p.m. to 02.00 p.m.",
+         "11.15 a.m. to 12.15 p.m.", "12.15 a.m. to 01.15 a.m.", "01.15 p.m. to 02.00 p.m.",
          "02.00 p.m. to 03.00 p.m.", "03.00 p.m. to 04.00 p.m."]
 FACULTY = [("KKD", "Prof. Kiran K. Desai"), ("AVN", "Prof. Anita V. Nair"), ("PJB", "Dr. Prakash J. Bhatt"),
            ("RHS", "Prof. Rhea H. Shah")]

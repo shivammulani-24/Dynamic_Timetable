@@ -81,12 +81,28 @@ What the college PDF showed, and the generic rule each case led to (no file-spec
 | `Batch 2`, `Batch D`, `S.N. 1 to 60`, wrapped `…/AT/Batch` + `1/505`, `Data Sci.Lab` + `D4/ARN/…` | Group tokens and wrapped lines recognised |
 | `606-4 &5`, `703-A&B`, `HSS(609)`, `AT(Math)`, `LLC ()`, `MDM Lab()` | Multi-room labels, course(room), faculty(note), empty details kept as missing |
 
-Result on that file (10 pages, all parsed, text layer): **NEEDS_REVIEW**, 453 class entries,
-293 VERIFIED / 159 UNVERIFIED / 1 INCOMPLETE. What remains flagged is real: the `12.15 a.m.`
-noon row (86 entries, time uncertain), codes absent from every legend (`LA`, `ALA`, `HSS`, `MDM`,
-`IOT`, `PD`, `VM`), blank `LLC ()` / `MDM Lab()` cells, two cell times contradicting their rows,
-the different W.E.F. date on the M.Tech page, the combined BE A–D scope, and one M.Tech cell with
-no time label. These counts describe this one document — they are not an accuracy measurement.
+Rules agreed with the college after the first run (parser 1.2.0):
+
+| College rule | Implementation |
+|---|---|
+| Lunch is 12:15–1:15 for some years and 1:15–2:15 for others; "12.15 a.m." means midday | A label marking **12 as a.m.** is read as midday only when the rows before and after join it exactly (e.g. `…to 12.15 p.m.` / `1.15 p.m. to…`). The raw label is kept and the entry carries `NOON_AM_MARKER_CORRECTED` (INFO). Anything not proven that way stays `TIME_LABEL_INCONSISTENT`. "After lunch" questions use the asker's own section's LONG BREAK; the Admin setting is only a fallback |
+| LLC / MDM need no room or teacher | A cell written with empty brackets (`LLC ()`, `MDM Lab()`) or as `COURSE(room)` is complete as printed (`DETAILS_NOT_GIVEN`, INFO). The app shows only the course; teacher/room rows are hidden |
+| Codes missing from a legend: leave as is | `COURSE_/FACULTY_ABBREVIATION_UNKNOWN` are INFO; the code is shown exactly as printed |
+| Use one start date | The W.E.F. date most pages state (earliest on a tie) is the document's; each section keeps its own; `EFFECTIVE_DATE_VARIES` (INFO) lists the others |
+| BE is one combined page | `DIVISION_SCOPE_COMBINED` is INFO; "BE-A/B/C/D" maps to the batch that is the common parent of BE-A…BE-D, so every BE student sees it (`COMBINED_SCOPE_NOT_MAPPED` if no such parent exists) |
+| A cell's own written time | Used when it is complete (`TIME_FROM_CELL_OVERRIDES_ROW` / `…_WITHIN_SPAN`); a "(02:15 PM-03:15 PM)" line times every item above it back to the previous time line |
+| Legend text clipped at a cell border ("Graph Theo") | Completed from another page of the same document that prints the same code with longer text starting the same way |
+
+Overlaps the timetable lays out on purpose are not reported as clashes, both at extraction and in
+the Conflicts screen: items stacked in one cell, parallel elective/minor options (`PARALLEL_OPTION`),
+a sub-group whose own written period runs into its division's class, and one session (same course,
+time, room and an overlapping teacher) printed on several pages **of the same year** (e.g. an MDM
+shared by TE A–D).
+
+Result on the college PDF: **452 of 453 classes VERIFIED**. What remains is in the document: one M.Tech
+cell (*HSS (305)*) in a row with no time label (INCOMPLETE), and two real clashes the Conflicts screen
+reports (Prof. SP on Friday 2:15–3:15 in two rooms; room 603-2 double-booked on Tuesday 2:15–3:15).
+These counts describe this one document; they are not an accuracy measurement.
 
 ## Known parser limits (be honest about these)
 

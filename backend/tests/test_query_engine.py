@@ -233,16 +233,18 @@ def test_q10_crosses_days_within_lookahead(client):
 
 def test_q11_after_lunch_and_unconfigured(client, db):
     j = ask(client, "alice", "Do I have classes after lunch?")
-    assert j["intent_id"] == "Q11" and j["meta"]["boundary"] == "14:00"
+    # Alice's own section prints LONG BREAK 13:15–14:00 → the timetable decides, not the setting.
+    assert j["intent_id"] == "Q11" and j["meta"]["boundary"] == "14:00" and j["meta"]["boundary_source"] == "TIMETABLE"
     from app.models import InstitutionConfig
 
     cfg = db.get(InstitutionConfig, 1)
     cfg.lunch_boundary = None
     db.commit()
     try:
-        j = ask(client, "alice", "Do I have classes after lunch?")
+        # Sunday: no section of hers meets, so no printed lunch and no setting → ask.
+        j = ask(client, "alice", "Do I have classes after lunch on Sunday?")
         assert j["status"] == "CLARIFICATION_REQUIRED" and j["clarification"]["kind"] == "CONFIGURATION"  # T14
-        j2 = ask(client, "alice", "Do I have classes after lunch?", parameters={"lunch_time": "13:00"})
+        j2 = ask(client, "alice", "Do I have classes after lunch on Sunday?", parameters={"lunch_time": "13:00"})
         assert j2["intent_id"] == "Q11" and j2["meta"]["boundary"] == "13:00"
     finally:
         cfg.lunch_boundary = time(14, 0)

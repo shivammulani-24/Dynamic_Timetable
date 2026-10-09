@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import date, time
 from typing import Any
 
-PARSER_VERSION = "tt-grid-parser/1.1.0"
+PARSER_VERSION = "tt-grid-parser/1.2.0"
 
 
 @dataclass

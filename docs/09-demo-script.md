@@ -8,7 +8,8 @@ demo users: `Demo@12345`.
    *Unverified* / *Tentative* tags. Tap a class → details with raw source text and page.
 2. **Ask tab** — "Find all DBMS classes" → results. "Am I free at 2?" → AM/PM question → choose
    2:00 PM → date question → Today → answer. "Is room 702-B free at 12:30 pm today?" → *Cannot
-   confirm* because the source's noon row label is inconsistent. "Compare my personal and college
+   confirm* because the synthetic file's noon row label is garbled ("12.15 a.m. to 01.15 a.m."). (With
+   `seed-college`, the real "12.15 a.m. to 01.15 p.m." row is proven midday and answers normally.) "Compare my personal and college
    timetable" → clearly not supported.
 3. **Domain separation** — switch to **Personal**: answers now come from her own upload (teal accent,
    timetable name shown). Log in as **bob** → Personal → no primary → upload prompt; nothing falls

@@ -58,6 +58,19 @@ def _same_cell(a: CandidateEntry, b: CandidateEntry) -> bool:
             and (ra.get("grid_row"), ra.get("grid_col")) == (rb.get("grid_row"), rb.get("grid_col")))
 
 
+def _explicit_subgroup_period(a: CandidateEntry, b: CandidateEntry, la: str, lb: str) -> bool:
+    """A lab sub-group whose own cell spells out a longer period ("Data Sci.Lab C3 (2.15 - 4.15 pm)")
+    while the rest of the division continues: the author scheduled it deliberately. Recorded as INFO."""
+    sub = a if len(la) > len(lb) else b
+    if not sub.has_code("TIME_FROM_CELL_OVERRIDES_ROW"):
+        return False
+    if not sub.has_code("SUBGROUP_DURING_DIVISION_CLASS"):
+        sub.messages.append({"severity": "INFO", "code": "SUBGROUP_DURING_DIVISION_CLASS",
+                             "message": "This sub-group's own written time runs into a class of its division; "
+                                        "kept as the source schedules it."})
+    return True
+
+
 def document_checks(entries: list[CandidateEntry]) -> list[Finding]:
     findings: list[Finding] = []
     seen_exact: dict[tuple, int] = {}
@@ -100,6 +113,8 @@ def document_checks(entries: list[CandidateEntry]) -> list[Finding]:
                     continue  # parallel elective groups
                 if _same_cell(ea, eb) or (ea.has_code("PARALLEL_OPTION") and eb.has_code("PARALLEL_OPTION")):
                     continue  # stacked in one cell / elective options: listed together on purpose
+                if la != lb and _explicit_subgroup_period(ea, eb, la, lb):
+                    continue
                 for x in (ea, eb):
                     if not x.has_code("POSSIBLE_BATCH_OVERLAP"):
                         x.messages.append({"severity": "WARNING", "code": "POSSIBLE_BATCH_OVERLAP",

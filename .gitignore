@@ -27,3 +27,5 @@ mobile/android/
 tests/fixtures/generated/
 e2e-screens/
 .export-check/
+mobile/dist-web/
+mobile/e2e-college-screens/

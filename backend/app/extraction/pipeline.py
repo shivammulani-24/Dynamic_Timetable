@@ -4,6 +4,8 @@ Pure function of its inputs (no DB access) so it can be unit-tested and run in t
 """
 from __future__ import annotations
 
+from collections import Counter
+
 from app.extraction import office, pdf
 from app.extraction.gridparse import parse_grid
 from app.extraction.layout import split_layout
@@ -70,6 +72,20 @@ def run_extraction(data: bytes, fmt: str, *, require_scope: bool, known_rooms: s
         for kind in ("faculty", "subject"):
             for code, name in sec.legend.get(kind, {}).items():
                 doc_legend[kind].setdefault(code, name)
+    # A legend cell clipped at its border ("Graph Theo") is completed from another page of the same
+    # document that prints the same code with a longer text starting the same way ("Graph Theory").
+    for kind in ("faculty", "subject"):
+        for sec in sections:
+            for code, name in sec.legend.get(kind, {}).items():
+                best = doc_legend[kind].get(code, name)
+                if len(name) > len(best) and name.lower().startswith(best.lower()):
+                    doc_legend[kind][code] = name
+        for sec in sections:
+            table = sec.legend.get(kind, {})
+            for code, name in list(table.items()):
+                full = doc_legend[kind].get(code, name)
+                if len(full) > len(name) and full.lower().startswith(name.lower()):
+                    table[code] = full
 
     for g, sec, head in prepared:
         if sec.is_tentative:
@@ -93,18 +109,24 @@ def run_extraction(data: bytes, fmt: str, *, require_scope: bool, known_rooms: s
         assign_status(e)
     findings += document_checks(entries)
 
-    effs = {s.effective_from for s in sections if s.effective_from}
-    raw_effs = [s.effective_from_raw for s in sections if s.effective_from_raw]
-    if len(effs) > 1:
-        findings.append(Finding("METADATA_WARNING", "EFFECTIVE_DATE_CONTRADICTORY",
-                                "Different pages state different effective dates: " + ", ".join(sorted(d.isoformat() for d in effs))))
-    elif sections and not effs:
+    # Pages may state different W.E.F. dates. The document's date is the one most pages state
+    # (earliest on a tie); every section keeps its own date and the difference is reported.
+    eff_counts = Counter(s.effective_from for s in sections if s.effective_from)
+    doc_eff = min(eff_counts, key=lambda d: (-eff_counts[d], d)) if eff_counts else None
+    raw_effs = [s.effective_from_raw for s in sections if s.effective_from_raw and s.effective_from == doc_eff]
+    if len(eff_counts) > 1:
+        others = ", ".join(f"{d.isoformat()} (page {', '.join(str(s.page) for s in sections if s.effective_from == d)})"
+                           for d in sorted(eff_counts) if d != doc_eff)
+        findings.append(Finding("INFO", "EFFECTIVE_DATE_VARIES",
+                                f"Most pages are effective from {doc_eff.isoformat()}, which is used for the document; "
+                                f"also stated: {others}."))
+    elif sections and not eff_counts:
         findings.append(Finding("METADATA_WARNING", "EFFECTIVE_DATE_MISSING", "No 'W.E.F.' / effective date was found."))
     ays = {s.academic_year_label for s in sections if s.academic_year_label}
     terms = {s.term_label for s in sections if s.term_label}
     return ExtractionResult(
         page_count=page_count, pages=pages, sections=sections, entries=entries, findings=findings, file_format=fmt,
-        effective_from=next(iter(effs)) if len(effs) == 1 else None,
+        effective_from=doc_eff,
         effective_from_raw=raw_effs[0] if raw_effs else None,
         term_label=next(iter(terms)) if len(terms) == 1 else None,
         academic_year_label=next(iter(ays)) if len(ays) == 1 else None,

@@ -18,6 +18,8 @@ scripts/dev.sh seed; scripts/dev.sh api & scripts/dev.sh worker &
 cd mobile && EXPO_PUBLIC_API_URL=http://localhost:8000 npx expo export --platform web --output-dir dist-web
 npx serve -s dist-web -l 8081 &
 UPLOAD_FIXTURE=/path/to/synthetic_timetable.pdf npm run test:e2e -- http://localhost:8081 ./e2e-screens
+# real timetable: scripts/dev.sh seed-college (restart the API), then
+npm run test:e2e:college -- http://localhost:8081 ./e2e-college
 
 # Concurrency smoke (seeded dev API running)
 python scripts/load_smoke.py http://localhost:8000 24 15
@@ -27,11 +29,11 @@ python scripts/load_smoke.py http://localhost:8000 24 15
 
 | Suite | Result |
 |---|---|
-| Backend pytest | **131 passed** (≈30 s) |
+| Backend pytest | **145 passed** (≈45 s) |
 | Mobile TypeScript (`strict`, `noUnusedLocals`) | clean |
-| Mobile Jest | **13 passed** |
+| Mobile Jest | **14 passed** |
 | Expo export Android + iOS (Hermes bytecode) | both bundles compiled (5.6 MB / 5.4 MB) |
-| Playwright e2e (web target, 390×844 viewport) | **21/21 checks**, 0 page errors |
+| Playwright e2e (web target, 390×844 viewport) | synthetic demo **21/21**; real college timetable **22/22**; real PDF uploaded through the Admin screen 21/21; 0 page errors, 0 server errors |
 | Concurrency smoke, 4 API workers, 24 threads × 15 requests | 360/360 HTTP 200, 0 inconsistent answers, ≈32 req/s, p50 ≈0.42 s, p95 ≈1.3 s |
 
 The concurrency figures come from a shared sandbox VM running Postgres, API, worker and the load
@@ -44,11 +46,12 @@ supported-user or capacity claim**. A real capacity test must run on the deploym
 |---|---|---|
 | Auth & sessions (`test_auth.py`, 13) | login, generic failure, suspended accounts, expired/garbage tokens, refresh rotation + reuse detection, logout, invitation activation, password reset, role change invalidates tokens, self-lockout prevention, timezone validation, login rate limit | role escalation, token expiry |
 | Extraction (`test_extraction.py`, 23) | all pages + provenance, grid/legends, tentative, combined divisions, stacked labs, legend-only expansion, room suffixes, inconsistent noon label, merged 2-hour lab, breaks/activities, missing room, effective date, scanned PDF OCR, corrupt PDF, no-table PDF, XLSX/CSV/DOCX/PNG through the same pipeline, DOCX merged cells, signature detection, time rules, cell grammar | PDF-01…PDF-13 |
-| Real college PDF (`test_reference_pdf.py`, 12) | 10 pages parsed; headings inside the table; column-split legends; legend rows not parsed as classes; plain + stacked labs; noon row flagged; electives as parallel options; cell time within span vs conflict; combined BE scope; wrapped/grouped tokens; missing info reported; upload → worker → DB → activate | PDF-01…PDF-16 on a real document |
+| Real college PDF (`test_reference_pdf.py`, 14) | 10 pages parsed; headings inside the table; column-split legends; legend rows not parsed as classes; plain + stacked labs; noon row read as midday when proven; electives as parallel options; cell time within span vs conflict; combined BE scope; wrapped/grouped tokens; missing info reported; upload → worker → DB → activate | PDF-01…PDF-16 on a real document |
+| College seed end to end (`test_college_seed.py`, 11) | seed from the real PDF → 452/453 verified; Conflicts = exactly the 2 clashes printed in the PDF; lab group sees only its labs; LLC without teacher/room; BE A and C see the combined page; SE vs TE lunch from their own sections; next class; professor + HOD schedules; free rooms; no-batch student | |
 | Uploads & domains (`test_uploads_and_domains.py`, 13) | upload→worker→status, primary unchanged by upload, independent primaries, wrong-domain ID, IDOR incl. Admin, institutional upload Admin-only, activation + notification, unusable can't be primary, rejected files, idempotent upload + duplicate file, same file both domains, correction preserves original + audit, worker retry, soft-delete rules | API-03…06, PDF-14/15, T06, T09, T10 |
 | Query engine (`test_query_engine.py`, 57) | every intent Q01–Q30 (valid + negative paths), clarifications (AM/PM, date, week range, lunch, entity choice, confirmation, setup), working hours missing, inventory incomplete, unverified room, role restrictions, explicit archive, selection memory and domain switch, cross-domain rejection without querying, no fallback, disjoint results, SQL-injection text, raw SQL/unknown parameters, dashboard = typed query, history, saved searches, registry completeness | API-01, 02, 07–16; T01–T16 |
 | Academics & admin (`test_academics_admin.py`, 13) | fresher registration without duplicates, promotion preview/confirm with preserved history, transition rules (pause/resume/repeat/withdraw/re-enter/graduate), all-or-nothing batches, **concurrent promotions** (one wins), single active year, master-data validation, role matrix for admin endpoints, conflict detection (end-exclusive, POSSIBLE vs CONFIRMED, access), **concurrent activations**, notifications ownership, OpenAPI, validation envelope | FR-03, FR-20, FR-24 |
-| Mobile (`__tests__`, 13) | client: bearer header, **single-flight refresh** under concurrent 401s, refresh rejection clears session, error codes preserved, 4xx search envelopes returned, network errors; offline cache never persists personal/notification data; formatting/date helpers; result renderer: clarification choices, unverified markers, no-broadening note, Q30 message | |
+| Mobile (`__tests__`, 14) | client: bearer header, **single-flight refresh** under concurrent 401s, refresh rejection clears session, error codes preserved, 4xx search envelopes returned, network errors; offline cache never persists personal/notification data; formatting/date helpers; result renderer: clarification choices, unverified markers, no-broadening note, Q30 message, slot without teacher/room | |
 | E2E (`mobile/e2e/smoke.e2e.mjs`) | login → dashboard → week → NL search → AM/PM + date clarification → Q30 → personal view + archives → sign-out → admin dashboard/hub/rooms → **file upload through the picker → worker processing → validation summary → activation offered** | |
 
 ## Not tested here (and why)
@@ -61,6 +64,7 @@ supported-user or capacity claim**. A real capacity test must run on the deploym
   `react-native-safe-area-context`, but not observed on hardware.
 * SMTP email delivery — no mail server configured.
 * Docker image build — no Docker daemon available (compose file syntax validated).
-* Extraction accuracy on the **real** college PDF — regression-tested (`tests/test_reference_pdf.py`,
-  hand-read expectations for sections, legends, specific cells and flags), but precision/recall
-  against a fully labelled sample has not been measured.
+* Extraction accuracy on the **real** college PDF — regression-tested and run end to end (API, worker,
+  web UI), but precision/recall against a fully hand-labelled sample has not been measured.
+* Expo Go on a physical phone — not available here; the same code ran on the web target and both
+  native bundles compile. Steps: `docs/11-run-on-phone.md`.

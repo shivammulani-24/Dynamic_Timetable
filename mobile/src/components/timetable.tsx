@@ -53,6 +53,11 @@ export function EntryCard({ e, domain, timetableId, compact }: { e: Entry; domai
           <Text variant="heading" numberOfLines={2}>
             {e.details_withheld ? 'Busy (other batch)' : e.course ?? 'Untitled class'}
           </Text>
+          {!e.details_withheld && e.course_code && e.course && !e.course.toLowerCase().includes(e.course_code.toLowerCase()) ? (
+            <Text variant="caption" muted numberOfLines={1}>
+              {e.course_code}
+            </Text>
+          ) : null}
           {!e.details_withheld ? (
             <Row wrap gap={12}>
               {e.professor ? <Meta icon="person-outline" text={e.professor} /> : null}

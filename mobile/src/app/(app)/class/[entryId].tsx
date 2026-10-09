@@ -50,7 +50,8 @@ export default function ClassDetails() {
       </Row>
       <Spacer />
       <Card style={{ paddingVertical: 4 }}>
-        {rows.map(([icon, label, value], i) => (
+        {/* Rows the timetable leaves blank (e.g. LLC: no faculty or room) are simply not shown. */}
+        {rows.filter(([, , value]) => value).map(([icon, label, value], i) => (
           <View key={label}>
             {i ? <Divider /> : null}
             <Row gap={12} style={{ minHeight: 56 }}>
@@ -59,7 +60,7 @@ export default function ClassDetails() {
                 <Text variant="caption" muted>
                   {label}
                 </Text>
-                <Text>{value ?? 'Not given in the timetable'}</Text>
+                <Text>{value}</Text>
               </View>
             </Row>
           </View>
@@ -72,9 +73,11 @@ export default function ClassDetails() {
           ))}
         </View>
       ) : null}
-      <Text variant="caption" faint style={{ marginTop: 12 }}>
-        The room shown is where the class is scheduled — not a confirmation of attendance or location.
-      </Text>
+      {e.room ? (
+        <Text variant="caption" faint style={{ marginTop: 12 }}>
+          The room shown is where the class is scheduled — not a confirmation of attendance or location.
+        </Text>
+      ) : null}
       {e.raw_text ? (
         <Card style={{ marginTop: 12 }}>
           <Text variant="micro" muted>

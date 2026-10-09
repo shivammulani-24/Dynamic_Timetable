@@ -50,3 +50,13 @@ test('unsupported cross-domain request renders an explanation', async () => {
   );
   expect(getByText('Not supported')).toBeTruthy();
 });
+
+test('a slot without faculty or room shows just the course (e.g. LLC)', async () => {
+  const llc = { ...entry, entry_id: 'e2', course: 'Co Curricular Course', course_code: 'LLC', professor: null, professor_code: null,
+    room: null, floor: null, verification_status: 'VERIFIED', time_uncertain: false };
+  const { getByText, queryByText } = await render(<SearchResult res={{ ...base, results: [llc] }} onChoose={jest.fn()} />);
+  expect(getByText('Co Curricular Course')).toBeTruthy();
+  expect(getByText('LLC')).toBeTruthy();                       // printed code shown under the name
+  expect(queryByText(/Not given/)).toBeNull();
+  expect(queryByText('Unverified')).toBeNull();
+});

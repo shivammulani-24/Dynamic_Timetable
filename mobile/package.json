@@ -52,6 +52,7 @@
     "lint": "expo lint",
     "doctor": "expo-doctor",
     "test:e2e": "node e2e/smoke.e2e.mjs",
+    "test:e2e:college": "node e2e/college.e2e.mjs",
     "export:check": "EXPO_OFFLINE=1 EXPO_PUBLIC_API_URL=https://example.invalid expo export --platform android --platform ios --output-dir .export-check"
   },
   "private": true,

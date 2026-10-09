@@ -409,11 +409,30 @@ def h_next(r: Run) -> T.Result:
     return T.qt08_next(_q(r), _filters(r, "batch", "course", "professor", "room", self_default=True))
 
 
+def _section_lunch_end(r: Run, d: date) -> time | None:
+    """End of the LONG BREAK / LUNCH printed in the caller's own section(s) of the selected timetable
+    that day. Lunch differs between years (e.g. 12:15 for some, 1:15 for others), so the timetable
+    itself is preferred over the single institution-wide setting. None when absent or not unique."""
+    from sqlalchemy import select
+
+    q = _q(r)
+    e = q.m.entry
+    sections = select(e.section_id).where(q.base().whereclause, q.on_date(d), e.section_id.is_not(None)).distinct()
+    ends = set(r.db.scalars(select(e.end_time).where(
+        e.timetable_id == r.ctx.timetable_id, e.entry_kind == "BREAK", e.section_id.in_(sections), q.on_date(d),
+        e.time_uncertain.is_(False), e.end_time.is_not(None),
+        q.m.course_label.op("~*")(r"(long\s*break|lunch)"),
+    )))
+    return next(iter(ends)) if len(ends) == 1 else None
+
+
 def h_after(r: Run) -> T.Result:
     pr = r.req.parameters
     if r.parsed.after_lunch and "time" not in pr:
         cfg = r.db.get(InstitutionConfig, 1)
-        boundary = pr.get("lunch_time") or (cfg.lunch_boundary if cfg else None)
+        section_lunch = None if pr.get("lunch_time") else _section_lunch_end(r, need_date(r, default_today=True))
+        boundary = pr.get("lunch_time") or section_lunch or (cfg.lunch_boundary if cfg else None)
+        source = "ASKED" if pr.get("lunch_time") else ("TIMETABLE" if section_lunch else "SETTING")
         if boundary is None:
             raise Clarify("CONFIGURATION", "The college has not configured when lunch ends. After what time?", "lunch_time",
                           [{"label": _fmt(time(h, m)), "value": {"lunch_time": f"{h:02d}:{m:02d}"}} for h, m in ((13, 0), (13, 30), (14, 0))])
@@ -423,6 +442,8 @@ def h_after(r: Run) -> T.Result:
     res = T.qt04_filter_by_time(_q(r), d, boundary, time(23, 59), _filters(r, "batch", "course", "professor", "room", self_default=True),
                                 starts_within=True)
     res.meta["boundary"] = boundary.strftime("%H:%M")
+    if r.parsed.after_lunch and "time" not in pr:
+        res.meta["boundary_source"] = source
     return res
 
 

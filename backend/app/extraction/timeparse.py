@@ -206,6 +206,31 @@ def resolve_sequence(labels: list[TimeLabel | None]) -> list[ResolvedTime]:
                 acc.pop()
 
     walk(0, 0, [])
+
+    def unique(i: int) -> tuple[int, int] | None:
+        r = {tuple(sol[i][:2]) for sol in solutions if sol[i] is not None}
+        return next(iter(r)) if len(r) == 1 else None
+
+    def neighbour(i: int, step: int) -> tuple[int, int] | None:
+        j = i + step
+        while 0 <= j < n and not (labels[j] and labels[j].start and labels[j].end):
+            j += step
+        return unique(j) if 0 <= j < n else None
+
+    def noon_typo(i: int, s: int, e: int) -> bool:
+        """'12.15 a.m. to 01.15 p.m.' (or '11.15 a.m. to 12.15 a.m.') between rows that end/start
+        exactly at its midday reading: 12 marked a.m. is read as midday only when BOTH adjacent rows
+        join it exactly and the other end matches its own marker."""
+        lab = labels[i]
+        start_typo = lab.start.hour == 12 and lab.start.marker == "am" and s == 12 * 60 + lab.start.minute
+        end_typo = lab.end.hour == 12 and lab.end.marker == "am" and e == 12 * 60 + lab.end.minute
+        if not (start_typo or end_typo):
+            return False
+        if (not start_typo and s not in lab.start.candidates()) or (not end_typo and e not in lab.end.candidates()):
+            return False
+        prev, nxt = neighbour(i, -1), neighbour(i, +1)
+        return bool(prev and nxt and prev[1] == s and nxt[0] == e)
+
     out: list[ResolvedTime] = []
     for i, lab in enumerate(labels):
         if lab is None or not (lab.start and lab.end):
@@ -219,7 +244,13 @@ def resolve_sequence(labels: list[TimeLabel | None]) -> list[ResolvedTime]:
                                                         "message": f"Time label '{lab.raw}' is not a valid same-day interval."}]))
         elif len(readings) == 1:
             s, e = next(iter(readings))
-            if literal == {False}:
+            if literal == {False} and noon_typo(i, s, e):
+                out.append(ResolvedTime(_t(s), _t(e), False, [{
+                    "severity": "INFO", "code": "NOON_AM_MARKER_CORRECTED",
+                    "message": f"Label '{lab.raw}' marks 12 as a.m.; the rows before and after join exactly at "
+                               f"{_t(s):%H:%M} and {_t(e):%H:%M}, so it is read as midday. Raw label kept.",
+                }]))
+            elif literal == {False}:
                 out.append(ResolvedTime(_t(s), _t(e), True, [{
                     "severity": "CRITICAL", "code": "TIME_LABEL_INCONSISTENT",
                     "message": f"Time label '{lab.raw}' contradicts its a.m./p.m. markers or the row sequence; "

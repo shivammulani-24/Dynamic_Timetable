@@ -37,9 +37,8 @@ def _batch_label(section: SectionInfo | None, subgroup: str | None) -> tuple[str
     if len(divs) == 1:
         return (f"{level}-{divs[0]}" if level else f"DIV-{divs[0]}"), msgs
     if len(divs) > 1:
-        msgs.append({"severity": "WARNING", "code": "DIVISION_SCOPE_COMBINED",
-                     "message": f"This section combines divisions {', '.join(divs)}; the cell does not name one, "
-                                "so no single division is assigned."})
+        msgs.append({"severity": "INFO", "code": "DIVISION_SCOPE_COMBINED",
+                     "message": f"This section is shared by divisions {', '.join(divs)}; the class applies to all of them."})
         return (f"{level}-{'/'.join(divs)}" if level else "/".join(divs)), msgs
     return level, msgs
 
@@ -175,11 +174,22 @@ def _check_explicit(e: CandidateEntry, label) -> None:
         })
         e.start_time, e.end_time = rt.start, rt.end
         return
-    if (rt.start, rt.end) != (e.start_time, e.end_time):
+    if not rt.uncertain:
+        # The cell states its own complete time (e.g. "(10:00 am - 12:00 pm)") — more specific than
+        # the grid row it is drawn in. Used, with the row time kept for review.
         e.messages.append({
-            "severity": "WARNING", "code": "EXPLICIT_TIME_CONFLICT",
-            "message": f"Cell says {rt.start:%H:%M}–{rt.end:%H:%M} but the row is "
-                       f"{e.start_time:%H:%M}–{e.end_time:%H:%M}. Both preserved; needs review.",
-            "details": {"cell_start": rt.start.strftime("%H:%M"), "cell_end": rt.end.strftime("%H:%M")},
+            "severity": "INFO", "code": "TIME_FROM_CELL_OVERRIDES_ROW",
+            "message": f"Cell says {rt.start:%H:%M}–{rt.end:%H:%M}; it is drawn in the "
+                       f"{e.start_time:%H:%M}–{e.end_time:%H:%M} row. The cell's own time is used.",
+            "details": {"row_start": e.start_time.strftime("%H:%M"), "row_end": e.end_time.strftime("%H:%M")},
         })
-        e.time_uncertain = True
+        e.start_time, e.end_time = rt.start, rt.end
+        e.time_uncertain = False
+        return
+    e.messages.append({
+        "severity": "WARNING", "code": "EXPLICIT_TIME_CONFLICT",
+        "message": f"Cell says {rt.start:%H:%M}–{rt.end:%H:%M} but the row is "
+                   f"{e.start_time:%H:%M}–{e.end_time:%H:%M}. Both preserved; needs review.",
+        "details": {"cell_start": rt.start.strftime("%H:%M"), "cell_end": rt.end.strftime("%H:%M")},
+    })
+    e.time_uncertain = True

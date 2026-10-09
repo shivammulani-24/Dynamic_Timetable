@@ -72,12 +72,27 @@ def test_pdf08_room_suffixes_preserved(pdf_result):
     assert {"509 old", "702-B", "606-4"} <= rooms
 
 
-def test_pdf09_inconsistent_noon_label_flagged_not_silently_fixed(pdf_result):
-    noon = [e for e in pdf_result.entries if e.time_label_raw and "12.15 a.m." in e.time_label_raw]
+def test_pdf09_garbled_noon_label_flagged_not_silently_fixed(pdf_result):
+    # Synthetic row "12.15 a.m. to 01.15 a.m.": both markers contradict the sequence → not provable.
+    noon = [e for e in pdf_result.entries if e.time_label_raw and "12.15 a.m. to 01.15 a.m." in e.time_label_raw]
     assert noon
     for e in noon:
         assert e.time_uncertain and e.has_code("TIME_LABEL_INCONSISTENT")
         assert e.verification_status in ("UNVERIFIED", "INCOMPLETE")
+
+
+def test_noon_am_label_without_proof_stays_flagged():
+    # No following row: the midday reading is not proven by both neighbours.
+    out = resolve_sequence([parse_time_label("11.15 a.m. to 12.15 p.m."), parse_time_label("12.15 a.m. to 01.15 p.m.")])
+    assert out[1].uncertain and out[1].issues[0]["code"] == "TIME_LABEL_INCONSISTENT"
+    # A gap before it: not proven either.
+    out = resolve_sequence([parse_time_label("10 a.m. to 11 a.m."), parse_time_label("12.15 a.m. to 01.15 p.m."),
+                            parse_time_label("1.15 p.m. to 2.15 p.m.")])
+    assert out[1].uncertain
+    out = resolve_sequence([parse_time_label("11.15 a.m. to 12.15 p.m."), parse_time_label("12.15 a.m. to 01.15 p.m."),
+                            parse_time_label("1.15 p.m. to 2.15 p.m.")])
+    assert (out[1].start, out[1].end) == (time(12, 15), time(13, 15))
+    assert not out[1].uncertain and out[1].issues[0]["code"] == "NOON_AM_MARKER_CORRECTED"
 
 
 def test_merged_two_hour_lab_spans_rows(pdf_result):
