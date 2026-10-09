@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+backend/var/
+backend/.env
+*.egg-info/
+# Node / Expo
+node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/ios/
+mobile/android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+# Env / secrets
+.env
+.env.local
+!.env.example
+# OS
+.DS_Store
