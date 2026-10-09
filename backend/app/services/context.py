@@ -97,6 +97,8 @@ def resolve_context(
             if not sel_id:
                 raise AppError(Code.INVALID_REQUEST, "selection.timetable_id is required for EXPLICIT_ARCHIVE.")
             tt = get_timetable(db, p, domain, sel_id)
+            if tt.timetable_id == primary_id(db, p, domain):
+                sel_type = SelectionType.PRIMARY  # selecting the primary is not an archive selection
     elif pref.selection_mode == SelectionMode.REMEMBER_LAST:
         last = pref.last_institutional_timetable_id if domain == Domain.INSTITUTIONAL else pref.last_personal_timetable_id
         if last is not None:

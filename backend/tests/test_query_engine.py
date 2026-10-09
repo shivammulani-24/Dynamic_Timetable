@@ -29,8 +29,34 @@ def world():
     with session_factory()() as db:
         info = seed_master(db)
         seed_timetables(db, info)
+        _second_archive(db, info)
     yield info
     truncate_all()
+
+
+def _second_archive(db, info):
+    """A second, non-primary institutional archive (older upload) for archive-selection tests."""
+    import os
+    import tempfile
+
+    from app.devdata.synthetic import main as make_synthetic
+    from app.enums import Domain
+    from app.security.principal import load_principal
+    from app.services.uploads import create_upload
+    from app.worker import drain
+
+    out = make_synthetic(tempfile.mkdtemp())
+    admin = load_principal(db, db.get(UserAccount, info["admin_user_id"]))
+    data = open(os.path.join(out, "synthetic_timetable.docx"), "rb").read()
+    create_upload(db, admin, Domain.INSTITUTIONAL, data, "older.docx", "OLDER archive (synthetic)",
+                  info["academic_year_id"], info["department_id"])
+    drain()
+
+
+def archive_id(db) -> str:
+    from app.models import InstitutionalTimetable
+
+    return str(db.scalar(select(InstitutionalTimetable.timetable_id).where(InstitutionalTimetable.title == "OLDER archive (synthetic)")))
 
 
 @pytest.fixture(autouse=True)
@@ -301,6 +327,8 @@ def test_q18_personal_unsupported(client):
 def test_q19_professors_for_batch(client):
     j = ask(client, "kkd", "Which professors teach SE-A?")
     assert j["intent_id"] == "Q19" and len(j["results"]) == 4
+    mine = ask(client, "alice", "Which professors teach my batch?")
+    assert mine["intent_id"] == "Q19" and len(mine["results"]) == 4
 
 
 # ------------------------------------------------------------------ Q20–Q25 rooms / floors
@@ -371,7 +399,9 @@ def test_q25_rooms_after_time(client):
 def test_q26_requires_selected_archive_then_searches_only_it(client, db):
     j = ask(client, "admin", "Search this archived timetable for DBMS")
     assert j["status"] == "CLARIFICATION_REQUIRED" and j["clarification"]["kind"] == "SELECT_ARCHIVE"
-    sel = j["clarification"]["choices"][0]["value"]["selection"]
+    choices = j["clarification"]["choices"]
+    assert [c["value"]["selection"]["timetable_id"] for c in choices] == [archive_id(db)]  # primary is not offered
+    sel = choices[0]["value"]["selection"]
     j2 = ask(client, "admin", "Search this archived timetable for DBMS", selection=sel)
     assert j2["intent"] == "SEARCH_SELECTED_ARCHIVE" and j2["meta"]["inner_intent"] == "FIND_COURSE_CLASSES"
     assert j2["context"]["selection_type"] == "EXPLICIT_ARCHIVE" and j2["context"]["timetable_id"] == sel["timetable_id"]
@@ -448,6 +478,26 @@ def test_explicit_archive_other_users_personal_id_denied(client, db):
     del bob_tid
 
 
+def test_selecting_primary_explicitly_is_primary(client, db):
+    from app.services.timetables import institutional_default_id
+
+    pid = str(institutional_default_id(db))
+    j = ask(client, "dev", "Show my timetable", selection={"type": "EXPLICIT_ARCHIVE", "timetable_id": pid})
+    assert j["context"]["selection_type"] == "PRIMARY"
+
+
+def test_explicit_archive_preserves_primary(client, db):
+    """API-16 / T04: searching an archive searches only it and leaves the primary unchanged."""
+    from app.services.timetables import institutional_default_id
+
+    before = institutional_default_id(db)
+    j = ask(client, "admin", "Find all DBMS classes", selection={"type": "EXPLICIT_ARCHIVE", "timetable_id": archive_id(db)})
+    assert j["context"]["timetable_id"] == archive_id(db)
+    db.expire_all()
+    assert institutional_default_id(db) == before
+    client.put("/api/v1/me/selection", headers=H(client, "admin"), json={"domain": "INSTITUTIONAL", "timetable_id": None})
+
+
 def test_institutional_id_in_personal_domain_rejected(client, db):
     from app.models import InstitutionalTimetable
 
@@ -495,9 +545,7 @@ def test_dashboard_uses_same_logic_as_typed_query(client):
 
 
 def test_remember_last_selection_and_domain_switch(client, db):
-    from app.models import InstitutionalTimetable
-
-    tid = str(db.scalar(select(InstitutionalTimetable.timetable_id)))
+    tid = archive_id(db)
     sel = {"type": "EXPLICIT_ARCHIVE", "timetable_id": tid}
     j = ask(client, "chitra", "Show my timetable", selection=sel)
     assert j["context"]["selection_type"] == "EXPLICIT_ARCHIVE"

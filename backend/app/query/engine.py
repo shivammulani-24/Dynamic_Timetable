@@ -745,7 +745,8 @@ def _search(db: Session, p: Principal, req: Request) -> tuple[int, dict]:
             rows, _ = list_timetables(db, p, ctx.domain, 20, 0)
             raise Clarify("SELECT_ARCHIVE", "Which archived timetable should I search? Select one first.", "selection",
                           [{"label": t.title, "value": {"selection": {"type": "EXPLICIT_ARCHIVE", "timetable_id": str(t.timetable_id)}}}
-                           for t in rows if t.processing_status in ("READY", "NEEDS_REVIEW")])
+                           for t in rows if t.processing_status in ("READY", "NEEDS_REVIEW")
+                          and t.timetable_id != primary_id(db, p, ctx.domain)])
         if intent is None:
             if archive_wrapped:
                 tt = serialize_timetable(ctx.timetable, ctx.domain, primary_id(db, p, ctx.domain))

@@ -25,3 +25,5 @@ mobile/android/
 # OS
 .DS_Store
 tests/fixtures/generated/
+e2e-screens/
+.export-check/

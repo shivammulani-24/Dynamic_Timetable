@@ -256,7 +256,8 @@ def classify(p: Parsed, *, has_professor: bool, has_room: bool, has_batch: bool,
                 and not has_batch:
             return "PROFESSOR_COURSE"
         return "PROFESSOR_SCHEDULE"
-    if has_batch and re.search(r"\b(who|which|list|show|what)\b.*\b(professors?|faculty|faculties|teachers?|staff|profs?|lecturers?)\b|\bwho teach(es)?\b", t):
+    teachers_q = re.search(r"\b(who|which|list|show|what)\b.*\b(professors?|faculty|faculties|teachers?|staff|profs?|lecturers?)\b|\bwho teach(es)?\b", t)
+    if teachers_q and (has_batch or re.search(r"\b(my|our) (batch|class|division|group)\b|\bteach(es)? (me|us)\b", t)):
         return "PROFESSORS_FOR_BATCH"
     if has_floor:
         if rooms_word and free_word:
