@@ -64,6 +64,19 @@ def _clean():
     Clock.freeze(None)
 
 
+@pytest.fixture(scope="session")
+def fx():
+    """Generated SYNTHETIC fixtures (see tests/fixtures/make_fixtures.py)."""
+    from tests.fixtures.make_fixtures import main
+
+    out = main(tempfile.mkdtemp(prefix="tt-fixtures-"))
+
+    def path(name: str) -> str:
+        return os.path.join(out, name)
+
+    return path
+
+
 @pytest.fixture
 def db():
     s = session_factory()()

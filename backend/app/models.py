@@ -397,6 +397,9 @@ class _EntryCols:
     start_time: Mapped[time | None] = mapped_column(Time)
     end_time: Mapped[time | None] = mapped_column(Time)
     time_label_raw: Mapped[str | None] = mapped_column(String(120))
+    # True when the interval could not be confirmed (ambiguous/inconsistent label, cell/row conflict).
+    # Such entries are excluded from current/next/free-time calculations (PDF spec §6).
+    time_uncertain: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"), default=False)
     course_name_resolved: Mapped[str | None] = mapped_column(String(200))
     staff_name_resolved: Mapped[str | None] = mapped_column(String(200))
     raw_extracted_text: Mapped[str | None] = mapped_column(Text)
