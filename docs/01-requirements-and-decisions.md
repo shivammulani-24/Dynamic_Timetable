@@ -65,7 +65,7 @@ reconciled against this file.
 | Conflict overview | ✖ | ✖ | ✔ (department) | ✔ | ✔ |
 | Floor activity / rooms-after-time (Q23, Q25) | ✖ | ✖ | ✔ | ✔ | ✔ |
 | Free-room search (Q22), room schedule (Q20/Q21/Q24) | ✔ | ✔ | ✔ | ✔ | ✔ |
-| Professor free time (Q18) | ✔ (professors teaching own batch) | ✔ (department) | ✔ | ✔ | ✔ |
+| Professor free time / scheduled location (Q18, Q16) | ✔ (busy/free or current room only) | ✔ | ✔ | ✔ | ✔ |
 | Master data (departments, years, batches, courses, rooms, aliases) | ✖ | ✖ | ✖ | ✖ | ✔ |
 | User/role/account-status management | ✖ | ✖ | ✖ | ✖ | ✔ |
 | Student promotion | ✖ | ✖ | ✖ | ✖ | ✔ |
@@ -103,7 +103,7 @@ AUDIT_EVENT, SAVED_SEARCH, SEARCH_HISTORY
 | C-03 | DB spec verification enum lacks `REJECTED`; PDF spec defines it. | Enum = `VERIFIED, UNVERIFIED, INCOMPLETE, REJECTED`. |
 | C-04 | SRS: Student/Staff ownership fields; DB: common `USER_ACCOUNT`. | DB spec (later, more specific) wins: `USER_ACCOUNT` + profiles. |
 | C-05 | SRS `BATCH` has `academic_year`; DB spec says do not use academic year as cohort identity. | DB spec wins. Added `code` (e.g. `SE-A`, `SE-A1`) and nullable `parent_batch_id` so lab sub-groups (A1) inherit division-level (A) classes. |
-| C-06 | Intents without explicit templates (Q01, Q05, Q09→QT07 only, Q11, Q13, Q26). | Q01→QT01; Q05→QT03/QT01 + batch filter; Q11→QT04 (boundary→end of day); Q13→QT04 overlap at instant; Q26→QT20 + inner template. Full map in `docs/03-query-engine.md`. |
+| C-06 | Intents without explicit templates (Q01, Q05, Q09→QT07 only, Q11, Q13, Q26). | Q01→QT01; Q05→QT03/QT01 + batch filter; Q11→QT04 (boundary→end of day); Q13→QT04 overlap at instant; Q26→QT20 + inner template. Full map in `docs/04-query-engine.md`. |
 | C-07 | QT01 lists Q14 and QT09 is for Q14. | Q14 uses QT09 (remaining after *now*); QT01 is its date source. |
 | C-08 | Search preference names: SRS `REMEMBER_LAST_SELECTION/USE_DOMAIN_PRIMARY`, DB/API `REMEMBER_LAST/ALWAYS_USE_PRIMARY`. | Use DB/API names. |
 | C-09 | Selection type: SRS `PRIMARY/ARCHIVE`, API/INT `PRIMARY/EXPLICIT_ARCHIVE`. | `PRIMARY/EXPLICIT_ARCHIVE`. |
@@ -146,4 +146,4 @@ IDOR protection — personal resources return 404 to non-owners (no existence le
 ## 7. Acceptance tests
 
 API-01…API-16, T01…T16, PDF-01…PDF-16 are mapped to automated tests in `backend/tests/`
-(see `docs/05-testing.md`).
+(see `docs/06-testing.md`).

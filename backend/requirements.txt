@@ -1,0 +1,20 @@
+# Direct dependencies (exact, tested versions). Full transitive lock: requirements.lock
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+SQLAlchemy==2.1.4
+psycopg[binary]==3.3.6
+alembic==1.20.0
+pydantic==2.14.0
+pydantic-settings==2.15.0
+email-validator==2.3.0
+argon2-cffi==25.1.0
+PyJWT==2.15.1
+python-multipart==0.0.32
+PyMuPDF==1.28.2
+pytesseract==0.3.13
+pillow==12.3.0
+openpyxl==3.1.5
+python-docx==1.2.0
+RapidFuzz==3.14.6
+httpx==0.28.1
+tzdata==2026.5

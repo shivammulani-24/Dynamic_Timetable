@@ -1,0 +1,1306 @@
+{
+ "intents": [
+  {
+   "id": "Q01",
+   "intent": "SHOW_MY_TIMETABLE",
+   "templates": [
+    "QT01"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [],
+   "optional": [
+    "date"
+   ],
+   "example": "Show my timetable",
+   "state_changing": false,
+   "notes": "No date \u2192 today (confirmed decision)."
+  },
+  {
+   "id": "Q02",
+   "intent": "SHOW_DAY_TIMETABLE",
+   "templates": [
+    "QT03",
+    "QT01"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "day_of_week|date"
+   ],
+   "optional": [
+    "batch",
+    "course",
+    "professor",
+    "room"
+   ],
+   "example": "Show Monday's timetable",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q03",
+   "intent": "SHOW_TIMETABLE_FOR_DATE",
+   "templates": [
+    "QT01"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "date"
+   ],
+   "optional": [
+    "batch",
+    "course",
+    "professor",
+    "room"
+   ],
+   "example": "What classes do I have tomorrow?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q04",
+   "intent": "SHOW_WEEK_TIMETABLE",
+   "templates": [
+    "QT02"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "date_range"
+   ],
+   "optional": [
+    "batch"
+   ],
+   "example": "Show my timetable for this week",
+   "state_changing": false,
+   "notes": "Week start must be configured; otherwise ask for a range."
+  },
+  {
+   "id": "Q05",
+   "intent": "SHOW_BATCH_TIMETABLE",
+   "templates": [
+    "QT03",
+    "QT01"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "batch"
+   ],
+   "optional": [
+    "day_of_week",
+    "date"
+   ],
+   "example": "Show SE-A timetable",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q06",
+   "intent": "FIND_COURSE_CLASSES",
+   "templates": [
+    "QT05"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "course"
+   ],
+   "optional": [
+    "day_of_week",
+    "date"
+   ],
+   "example": "Find all DBMS classes",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q07",
+   "intent": "FILTER_CLASSES_BY_TIME",
+   "templates": [
+    "QT04"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "time_range",
+    "date|day_of_week"
+   ],
+   "optional": [],
+   "example": "Show my classes between 10 am and 12 pm",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q08",
+   "intent": "SHOW_CLASS_DETAILS",
+   "templates": [
+    "QT06"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "entry_id|identifying_fields"
+   ],
+   "optional": [],
+   "example": "Show details of the 10 am DBMS class",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q09",
+   "intent": "CURRENT_CLASS",
+   "templates": [
+    "QT07"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [],
+   "optional": [],
+   "example": "What class is happening now?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q10",
+   "intent": "NEXT_CLASS",
+   "templates": [
+    "QT08"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [],
+   "optional": [],
+   "example": "What is my next class?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q11",
+   "intent": "CLASSES_AFTER_TIME",
+   "templates": [
+    "QT04"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "lunch_boundary|time"
+   ],
+   "optional": [
+    "date"
+   ],
+   "example": "Do I have classes after lunch?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q12",
+   "intent": "TIME_UNTIL_NEXT_CLASS",
+   "templates": [
+    "QT08"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [],
+   "optional": [],
+   "example": "How long until my next class?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q13",
+   "intent": "CHECK_SCHEDULE_FREE",
+   "templates": [
+    "QT04"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "time",
+    "date"
+   ],
+   "optional": [
+    "professor"
+   ],
+   "example": "Am I free at 2 PM tomorrow?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q14",
+   "intent": "REMAINING_CLASSES_TODAY",
+   "templates": [
+    "QT09"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [],
+   "optional": [],
+   "example": "Do I have any classes left today?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q15",
+   "intent": "PROFESSOR_SCHEDULE",
+   "templates": [
+    "QT10"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "professor"
+   ],
+   "optional": [
+    "date",
+    "day_of_week",
+    "date_range"
+   ],
+   "example": "Show Professor Desai's schedule",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q16",
+   "intent": "PROFESSOR_SCHEDULED_LOCATION",
+   "templates": [
+    "QT11"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "professor"
+   ],
+   "optional": [
+    "time",
+    "date"
+   ],
+   "example": "Where is Professor Desai scheduled now?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q17",
+   "intent": "PROFESSOR_COURSE",
+   "templates": [
+    "QT12",
+    "QT05"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "professor"
+   ],
+   "optional": [],
+   "example": "Which course does Professor Desai teach?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q18",
+   "intent": "PROFESSOR_FREE_TIME",
+   "templates": [
+    "QT13"
+   ],
+   "domains": [
+    "INSTITUTIONAL"
+   ],
+   "required": [
+    "professor",
+    "date"
+   ],
+   "optional": [],
+   "example": "When is Professor Desai free tomorrow?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q19",
+   "intent": "PROFESSORS_FOR_BATCH",
+   "templates": [
+    "QT14"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "batch"
+   ],
+   "optional": [],
+   "example": "Which professors teach SE-A?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q20",
+   "intent": "ROOM_SCHEDULE",
+   "templates": [
+    "QT15"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "room"
+   ],
+   "optional": [
+    "date",
+    "day_of_week"
+   ],
+   "example": "Show room 508's schedule",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q21",
+   "intent": "ROOM_FREE_NOW",
+   "templates": [
+    "QT16"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "room"
+   ],
+   "optional": [
+    "time",
+    "date"
+   ],
+   "example": "Is room 508 free now?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q22",
+   "intent": "FIND_FREE_ROOMS",
+   "templates": [
+    "QT17"
+   ],
+   "domains": [
+    "INSTITUTIONAL"
+   ],
+   "required": [
+    "time",
+    "date"
+   ],
+   "optional": [
+    "floor"
+   ],
+   "example": "Which rooms are free at 2 PM today?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q23",
+   "intent": "FLOOR_ACTIVITY",
+   "templates": [
+    "QT18"
+   ],
+   "domains": [
+    "INSTITUTIONAL"
+   ],
+   "required": [
+    "floor"
+   ],
+   "optional": [
+    "time",
+    "date"
+   ],
+   "example": "What is happening on the 5th floor?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q24",
+   "intent": "ROOM_SCHEDULE_FOR_DAY",
+   "templates": [
+    "QT15",
+    "QT03"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "room",
+    "day_of_week|date"
+   ],
+   "optional": [],
+   "example": "Show room 508's schedule for Friday",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q25",
+   "intent": "ROOMS_WITH_CLASSES_AFTER_TIME",
+   "templates": [
+    "QT19"
+   ],
+   "domains": [
+    "INSTITUTIONAL"
+   ],
+   "required": [
+    "time",
+    "date"
+   ],
+   "optional": [
+    "floor"
+   ],
+   "example": "Which rooms have classes after 1 PM today?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q26",
+   "intent": "SEARCH_SELECTED_ARCHIVE",
+   "templates": [
+    "QT20"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "explicit_archive"
+   ],
+   "optional": [],
+   "example": "Search this archived timetable for DBMS",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q27",
+   "intent": "SHOW_PRIMARY_TIMETABLE",
+   "templates": [
+    "QT20"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [],
+   "optional": [],
+   "example": "Which timetable is currently primary?",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q28",
+   "intent": "MAKE_TIMETABLE_PRIMARY",
+   "templates": [
+    "QT22"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "timetable_id"
+   ],
+   "optional": [],
+   "example": "Make this timetable my primary",
+   "state_changing": true,
+   "notes": ""
+  },
+  {
+   "id": "Q29",
+   "intent": "LIST_TIMETABLE_ARCHIVES",
+   "templates": [
+    "QT21"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [],
+   "optional": [],
+   "example": "Show my old timetable archives",
+   "state_changing": false,
+   "notes": ""
+  },
+  {
+   "id": "Q30",
+   "intent": "CROSS_DOMAIN_COMPARE",
+   "templates": [],
+   "domains": [],
+   "required": [],
+   "optional": [],
+   "example": "Compare my personal and college timetable",
+   "state_changing": false,
+   "notes": "Unsupported in V1; always rejected without querying either domain."
+  }
+ ],
+ "templates": [
+  {
+   "id": "QT01",
+   "operation": "LIST_ENTRIES_FOR_DATE",
+   "intents": [
+    "Q01",
+    "Q02",
+    "Q03",
+    "Q14"
+   ],
+   "required": [
+    "timetable_id",
+    "date"
+   ],
+   "optional": [
+    "course",
+    "batch",
+    "professor",
+    "room"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT02",
+   "operation": "LIST_ENTRIES_FOR_DATE_RANGE",
+   "intents": [
+    "Q04"
+   ],
+   "required": [
+    "timetable_id",
+    "start_date",
+    "end_date"
+   ],
+   "optional": [
+    "batch"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED).",
+   "max_span_days": "MAX_DATE_RANGE_DAYS (31)"
+  },
+  {
+   "id": "QT03",
+   "operation": "LIST_ENTRIES_FOR_WEEKDAY",
+   "intents": [
+    "Q02",
+    "Q24",
+    "Q05"
+   ],
+   "required": [
+    "timetable_id",
+    "day_of_week"
+   ],
+   "optional": [
+    "batch",
+    "room"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT04",
+   "operation": "FILTER_ENTRIES_BY_TIME",
+   "intents": [
+    "Q07",
+    "Q25",
+    "Q11",
+    "Q13"
+   ],
+   "required": [
+    "timetable_id",
+    "date",
+    "start_time",
+    "end_time"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Entries with uncertain/missing times are EXCLUDED and the exclusion is reported as a warning."
+  },
+  {
+   "id": "QT05",
+   "operation": "FIND_BY_COURSE",
+   "intents": [
+    "Q06",
+    "Q17"
+   ],
+   "required": [
+    "timetable_id",
+    "course"
+   ],
+   "optional": [
+    "date",
+    "day_of_week"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT06",
+   "operation": "GET_ENTRY_DETAILS",
+   "intents": [
+    "Q08"
+   ],
+   "required": [
+    "timetable_id",
+    "entry_id"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings",
+    "raw_text"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT07",
+   "operation": "GET_CURRENT_ENTRY",
+   "intents": [
+    "Q09"
+   ],
+   "required": [
+    "timetable_id",
+    "now"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Entries with uncertain/missing times are EXCLUDED and the exclusion is reported as a warning."
+  },
+  {
+   "id": "QT08",
+   "operation": "GET_NEXT_ENTRY",
+   "intents": [
+    "Q10",
+    "Q12"
+   ],
+   "required": [
+    "timetable_id",
+    "now"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings",
+    "minutes_until"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Entries with uncertain/missing times are EXCLUDED and the exclusion is reported as a warning.",
+   "date_scope": "today, then following days up to next_class_lookahead_days"
+  },
+  {
+   "id": "QT09",
+   "operation": "GET_REMAINING_TODAY",
+   "intents": [
+    "Q14"
+   ],
+   "required": [
+    "timetable_id",
+    "now"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Entries with uncertain/missing times are EXCLUDED and the exclusion is reported as a warning."
+  },
+  {
+   "id": "QT10",
+   "operation": "GET_PROFESSOR_SCHEDULE",
+   "intents": [
+    "Q15"
+   ],
+   "required": [
+    "timetable_id",
+    "professor"
+   ],
+   "optional": [
+    "date",
+    "day_of_week",
+    "date_range"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT11",
+   "operation": "GET_PROFESSOR_SCHEDULED_LOCATION",
+   "intents": [
+    "Q16"
+   ],
+   "required": [
+    "timetable_id",
+    "professor",
+    "now"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Entries with uncertain/missing times are EXCLUDED and the exclusion is reported as a warning."
+  },
+  {
+   "id": "QT12",
+   "operation": "GET_PROFESSOR_COURSES",
+   "intents": [
+    "Q17"
+   ],
+   "required": [
+    "timetable_id",
+    "professor"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "course",
+    "course_code",
+    "evidence_count"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT13",
+   "operation": "GET_PROFESSOR_FREE_INTERVALS",
+   "intents": [
+    "Q18"
+   ],
+   "required": [
+    "timetable_id",
+    "professor",
+    "date",
+    "working_hours"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL"
+   ],
+   "result_fields": [
+    "start_time",
+    "end_time",
+    "duration_minutes"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Uncertain-time entries are treated as busy (conservative) and reported."
+  },
+  {
+   "id": "QT14",
+   "operation": "GET_PROFESSORS_FOR_BATCH",
+   "intents": [
+    "Q19"
+   ],
+   "required": [
+    "timetable_id",
+    "batch"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "professor",
+    "professor_code",
+    "courses",
+    "evidence_count"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT15",
+   "operation": "GET_ROOM_SCHEDULE",
+   "intents": [
+    "Q20",
+    "Q24"
+   ],
+   "required": [
+    "timetable_id",
+    "room"
+   ],
+   "optional": [
+    "date",
+    "day_of_week"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT16",
+   "operation": "CHECK_ROOM_SCHEDULED_FREE",
+   "intents": [
+    "Q21"
+   ],
+   "required": [
+    "timetable_id",
+    "room",
+    "date",
+    "time"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "room",
+    "scheduled_free",
+    "entries"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Entries with uncertain/missing times are EXCLUDED and the exclusion is reported as a warning."
+  },
+  {
+   "id": "QT17",
+   "operation": "FIND_SCHEDULED_FREE_ROOMS",
+   "intents": [
+    "Q22"
+   ],
+   "required": [
+    "timetable_id",
+    "date",
+    "time"
+   ],
+   "optional": [
+    "floor"
+   ],
+   "domains": [
+    "INSTITUTIONAL"
+   ],
+   "result_fields": [
+    "room",
+    "floor",
+    "building",
+    "capacity"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Rooms with uncertain/unmapped entries at that time are not claimed free."
+  },
+  {
+   "id": "QT18",
+   "operation": "GET_FLOOR_ENTRIES",
+   "intents": [
+    "Q23"
+   ],
+   "required": [
+    "timetable_id",
+    "floor",
+    "date",
+    "time"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT19",
+   "operation": "GET_ROOMS_WITH_ENTRIES_AFTER_TIME",
+   "intents": [
+    "Q25"
+   ],
+   "required": [
+    "timetable_id",
+    "date",
+    "time"
+   ],
+   "optional": [
+    "floor"
+   ],
+   "domains": [
+    "INSTITUTIONAL"
+   ],
+   "result_fields": [
+    "room",
+    "floor",
+    "first_start",
+    "classes"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT20",
+   "operation": "GET_SELECTED_TIMETABLE_METADATA",
+   "intents": [
+    "Q26",
+    "Q27"
+   ],
+   "required": [
+    "timetable_id"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "timetable"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT21",
+   "operation": "LIST_ARCHIVES_IN_DOMAIN",
+   "intents": [
+    "Q29"
+   ],
+   "required": [
+    "domain"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "timetable"
+   ],
+   "empty_result": "NO_MATCH scoped to the selected timetable; never broadened.",
+   "uncertain_handling": "Unverified entries returned with warnings (DATA_UNVERIFIED)."
+  },
+  {
+   "id": "QT22",
+   "operation": "SET_DOMAIN_PRIMARY",
+   "intents": [
+    "Q28"
+   ],
+   "required": [
+    "domain",
+    "timetable_id"
+   ],
+   "optional": [],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "primary_timetable_id"
+   ],
+   "empty_result": "n/a (action)",
+   "uncertain_handling": "Only READY/NEEDS_REVIEW timetables are eligible."
+  }
+ ]
+}
