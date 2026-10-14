@@ -58,10 +58,9 @@ has no Docker daemon).
 ### Accounts after `scripts/dev.sh seed-college` (real timetable)
 
 Password **`Demo@12345`**, domain `@demo.college.edu`: `admin@`, `principal@`, `snd@` (HOD + Professor),
-every faculty code from the PDF (`kkd@`, `avn@`, `js@`, `aag@` …), and students
-`student.se.a1@`, `student.se.a2@`, `student.se.b1@`, `student.se.c3@`, `student.se.d4@`, `student.te.a1@`,
-`student.te.b2@`, `student.te.c1@`, `student.te.d3@`, `student.be.a@`, `student.be.c@`, `student.mtech@`,
-`student.newbie@` (no batch yet). What to try with each: `docs/11-run-on-phone.md` §7.
+every faculty code from the PDF (`kkd@`, `avn@`, `js@`, `aag@` …), and **one student per lab group**:
+`student.<group>@` — `student.se.a1@` … `student.se.d4@`, `student.te.a1@` … `student.te.d4@`,
+`student.be.a@` … `student.be.d@`, `student.mtech@`, plus `student.newbie@` (no batch yet). What to try with each: `docs/11-run-on-phone.md` §7.
 
 ### Demo accounts after `scripts/dev.sh seed` (synthetic sample)
 

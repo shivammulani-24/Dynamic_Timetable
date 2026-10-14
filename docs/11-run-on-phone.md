@@ -89,6 +89,10 @@ the app bundle (the API must still be reachable, as in step 5).
 
 ## 7. What to test (password for every account: `Demo@12345`)
 
+Every lab group has a student login: `student.<group>@demo.college.edu`, e.g. `student.te.b4@…` for TE-B4,
+`student.se.c2@…` for SE-C2, `student.be.d@…` for BE-D, `student.mtech@…` for M.Tech.
+
+
 | Sign in as | Check |
 |---|---|
 | `student.se.a1@demo.college.edu` | **Home**: current/next class and countdown. **Timetable → Mon**: *Co Curricular Course* (LLC) shows no teacher/room; 12:15–1:15 *Data Structures* is a normal class. **Wed**: only the A1 labs, not A2/A3/A4. Tap a class for details. |

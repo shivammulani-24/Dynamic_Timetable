@@ -57,11 +57,9 @@ DEFAULT_PDF = os.path.join(HERE, "tests", "fixtures", "reference", "college_time
 YEAR_OF = {"FE": 1, "SE": 2, "TE": 3, "BE": 4, "MTECH": 1}
 HOD_CODE = "SND"
 
-DEMO_STUDENTS = [  # (login, batch)
-    ("se.a1", "SE-A1"), ("se.a2", "SE-A2"), ("se.b1", "SE-B1"), ("se.c3", "SE-C3"), ("se.d4", "SE-D4"),
-    ("te.a1", "TE-A1"), ("te.b2", "TE-B2"), ("te.c1", "TE-C1"), ("te.d3", "TE-D3"),
-    ("be.a", "BE-A"), ("be.c", "BE-C"), ("mtech", "MTECH"), ("newbie", None),
-]
+def _student_login(batch_code: str) -> str:
+    """"TE-B4" → "te.b4" (login student.te.b4@…)."""
+    return batch_code.lower().replace("-", ".")
 
 
 def _floor(room: str) -> str | None:
@@ -193,9 +191,12 @@ def seed(pdf_path: str) -> dict:
                             room_type="LAB" if lab else "CLASSROOM"))
 
         # ---------------------------------------------------------------- demo students
-        for login, code in DEMO_STUDENTS:
-            if code and code not in batches:
-                continue
+        # One login for every lab group / division without sub-groups (SE-A1 … TE-B4, BE-A … BE-D,
+        # MTECH), plus one student not yet placed in a batch.
+        parents = {b.parent_batch_id for b in batches.values() if b.parent_batch_id}
+        demo_students = [(_student_login(code), code) for code, b in sorted(batches.items())
+                         if b.batch_id not in parents] + [("newbie", None)]
+        for login, code in demo_students:
             u = account(f"student.{login}", f"Demo student ({code or 'no batch yet'})", RoleCode.STUDENT)
             st = Student(user_id=u.user_id, uid=f"DEV-{login.upper()}", department_id=ce.department_id)
             db.add(st)
@@ -223,7 +224,8 @@ def seed(pdf_path: str) -> dict:
                 InstitutionalTimetableEntry.entry_kind == "CLASS")):
             counts[st] = counts.get(st, 0) + 1
         return {"timetable_id": tt.timetable_id, "counts": counts, "staff": len(faculty), "rooms": len(rooms),
-                "courses": len({id(c) for c in course_index.values()}), "batches": len(batches)}
+                "courses": len({id(c) for c in course_index.values()}), "batches": len(batches),
+                "students": demo_students}
 
 
 def main() -> None:
@@ -243,8 +245,12 @@ def main() -> None:
     print(f"  admin@{DOMAIN}            Admin")
     print(f"  principal@{DOMAIN}        Principal")
     print(f"  snd@{DOMAIN}              HOD + Professor (SND)   — every faculty code works: kkd@, avn@, js@ …")
-    for login, code in DEMO_STUDENTS:
-        print(f"  student.{login}@{DOMAIN}".ljust(34) + f"Student {code or '(no batch yet)'}")
+    print(f"  student.<group>@{DOMAIN}  one student per lab group, e.g. student.te.b4@ (TE-B4):")
+    for level in ("SE", "TE", "BE", "MTECH"):
+        groups = [code for _, code in info["students"] if code and code.split("-")[0] == level]
+        if groups:
+            print(f"      {level}: " + ", ".join(_student_login(g) for g in groups))
+    print(f"  student.newbie@{DOMAIN}   Student not yet linked to a batch")
 
 
 if __name__ == "__main__":
