@@ -122,3 +122,29 @@ def test_free_room_and_unknown_legend_code(client):
 def test_newbie_without_batch_gets_setup_message(client):
     j = ask(client, "student.newbie", "What is my next class?", ok=False)
     assert (j.get("clarification") or {}).get("kind") == "SETUP_REQUIRED"
+
+
+def test_review_notice_is_for_the_admin_only(client):
+    student = ask(client, "student.se.a1", "What are my classes on Monday?")
+    assert not any(w["code"] == "TIMETABLE_NEEDS_REVIEW" for w in student["warnings"])
+    admin = ask(client, "admin", "Find all DBMS classes")
+    assert any(w["code"] == "TIMETABLE_NEEDS_REVIEW" for w in admin["warnings"])
+
+
+def test_free_room_answer_has_no_disclaimer_banner(client):
+    j = ask(client, "student.se.a1", "Which rooms are free now?")
+    assert j["status"] == "OK" and not any(w["code"] == "FREE_MEANS_UNSCHEDULED" for w in j["warnings"])
+
+
+def test_choosing_the_official_timetable_is_not_archive_browsing(client, college):
+    h = H(client, "student.se.a2")
+    tid = str(college["timetable_id"])
+    r = client.put("/api/v1/me/selection", headers=h, json={"domain": "INSTITUTIONAL", "timetable_id": tid})
+    assert r.status_code == 200 and r.json()["timetable_id"] is None      # nothing remembered
+    ctx = client.get("/api/v1/timetable-context", params={"domain": "INSTITUTIONAL"}, headers=h).json()
+    assert ctx["current"]["selection_type"] == "PRIMARY"
+
+
+def test_faculty_missing_from_legends_shown_by_code(client):
+    j = ask(client, "student.te.a1", "What are my classes on Monday?")
+    assert not any("legend" in (x["professor"] or "") for x in j["results"])

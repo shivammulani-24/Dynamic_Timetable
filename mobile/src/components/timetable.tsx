@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 
 import type { Domain, Entry, Timetable, Warning } from '@/api/types';
 import { fmtDuration, fmtRange, fmtTime } from '@/lib/format';
+import { useAuth } from '@/state/auth';
 import { useDomain } from '@/state/domain';
 import { useOnline } from '@/state/network';
 import { useTheme } from '@/theme/theme';
@@ -156,12 +157,22 @@ export function DomainBar({ showTimetable = true }: { showTimetable?: boolean })
                   ? 'No timetable selected in this view'
                   : ctx?.message ?? 'Timetable unavailable'}
           </Text>
-          {current ? <StatusPill status={current.processing_status} /> : null}
+          {current ? <TimetableStatus status={current.processing_status} domain={domain} /> : null}
           <Ionicons name="chevron-forward" size={14} color={t.colors.textFaint} />
         </Pressable>
       ) : null}
     </View>
   );
+}
+
+/**
+ * Processing status of a timetable (Ready / Needs review / …). On the official college timetable this
+ * is the Admin's review workflow, so other roles don't see it; on personal uploads the owner does.
+ */
+export function TimetableStatus({ status, domain }: { status: string; domain: Domain }) {
+  const { hasRole } = useAuth();
+  if (domain === 'INSTITUTIONAL' && !hasRole('ADMIN') && (status === 'READY' || status === 'NEEDS_REVIEW')) return null;
+  return <StatusPill status={status} />;
 }
 
 export function OfflineBanner({ updatedAt }: { updatedAt?: number }) {

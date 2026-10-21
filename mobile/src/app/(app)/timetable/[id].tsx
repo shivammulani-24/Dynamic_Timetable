@@ -5,7 +5,8 @@ import { View } from 'react-native';
 import type { ApiError } from '@/api/client';
 import * as api from '@/api/endpoints';
 import type { Domain } from '@/api/types';
-import { Banner, Button, Card, ErrorState, LoadingState, Pill, Row, Screen, SectionHeader, Spacer, Stat, StatusPill, Text } from '@/components/ui';
+import { Banner, Button, Card, ErrorState, LoadingState, Pill, Row, Screen, SectionHeader, Spacer, Stat, Text } from '@/components/ui';
+import { TimetableStatus } from '@/components/timetable';
 import { fmtDate, fmtDateTime } from '@/lib/format';
 import { useAuth } from '@/state/auth';
 import { invalidateTimetableData, useDomain } from '@/state/domain';
@@ -34,7 +35,7 @@ export default function TimetableDetail() {
   };
   const primary = useMutation({ mutationFn: () => api.makePrimary(domain, id), onSuccess: after, onError: (e: ApiError) => notify('Not changed', e.message) });
   const browse = useMutation({
-    mutationFn: () => api.setSelection(domain, id),
+    mutationFn: () => api.setSelection(domain, q.data?.is_primary ? null : id),
     onSuccess: async () => {
       setDomain(domain);
       await after();
@@ -76,7 +77,7 @@ export default function TimetableDetail() {
       </Text>
       <Spacer />
       <Row wrap gap={8}>
-        <StatusPill status={tt.processing_status} />
+        <TimetableStatus status={tt.processing_status} domain={domain} />
         <Pill label={tt.file_format} />
         {tt.page_count ? <Pill label={`${tt.page_count} page(s)`} /> : null}
       </Row>

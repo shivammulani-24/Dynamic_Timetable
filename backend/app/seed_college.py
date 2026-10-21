@@ -171,7 +171,7 @@ def seed(pdf_path: str) -> dict:
         for e in classes:
             for code in (e.staff_label or "").split("+"):
                 if code and code not in faculty:
-                    faculty[code] = f"{code} (not in the timetable legend)"
+                    faculty[code] = code  # printed without a legend entry: shown as printed
         for code, name in sorted(faculty.items()):
             if not re.fullmatch(r"[A-Z][A-Z0-9]{0,9}", code):
                 continue

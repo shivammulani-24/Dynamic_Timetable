@@ -15,7 +15,7 @@ from app.security.deps import get_current_user, get_principal
 from app.security.principal import Principal
 from app.services.academics import current_placement, history
 from app.services.preferences import get_or_create_preferences, validate_timezone
-from app.services.timetables import get_timetable
+from app.services.timetables import get_timetable, primary_id
 
 router = APIRouter(tags=["me"])
 
@@ -122,7 +122,8 @@ def set_selection(body: SelectionIn, p: Principal = Depends(get_principal), db: 
     tid = None
     if body.timetable_id:
         tt = get_timetable(db, p, body.domain, body.timetable_id)
-        tid = tt.timetable_id
+        # Choosing the primary itself just means "use the primary" — nothing to remember.
+        tid = None if tt.timetable_id == primary_id(db, p, body.domain) else tt.timetable_id
     if body.domain == Domain.INSTITUTIONAL:
         pref.last_institutional_timetable_id = tid
     else:

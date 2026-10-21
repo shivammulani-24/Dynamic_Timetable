@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.enums import Domain, ProcessingStatus, SelectionMode, SelectionType
 from app.errors import AppError, Code
+from app.security.policy import can_manage_institutional
 from app.security.principal import Principal
 from app.services.preferences import get_or_create_preferences
 from app.services.timetables import get_timetable, primary_id
@@ -104,7 +105,8 @@ def resolve_context(
         if last is not None:
             try:
                 tt = get_timetable(db, p, domain, last)
-                sel_type = SelectionType.EXPLICIT_ARCHIVE
+                # A remembered selection that is the primary itself is not an archive selection.
+                sel_type = SelectionType.PRIMARY if tt.timetable_id == primary_id(db, p, domain) else SelectionType.EXPLICIT_ARCHIVE
             except AppError:
                 # D-07: same-domain fallback to primary, with a visible warning. Never cross-domain.
                 warnings.append({
@@ -134,7 +136,9 @@ def resolve_context(
             "The selected timetable could not be processed into usable schedule data, so it cannot answer queries.",
             {"timetable_id": str(tt.timetable_id), "processing_status": tt.processing_status},
         )
-    if tt.processing_status == ProcessingStatus.NEEDS_REVIEW:
+    # "Needs review" is the reviewer's to act on: the Admin for the official timetable, the owner for a
+    # personal upload. Other users see the official timetable without this internal workflow notice.
+    if tt.processing_status == ProcessingStatus.NEEDS_REVIEW and (domain == Domain.PERSONAL or can_manage_institutional(p)):
         warnings.append({"code": "TIMETABLE_NEEDS_REVIEW",
                          "message": "This timetable has extraction warnings; some entries may be unverified."})
 

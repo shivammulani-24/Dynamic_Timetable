@@ -4,8 +4,8 @@ import { View } from 'react-native';
 
 import * as api from '@/api/endpoints';
 import type { Timetable } from '@/api/types';
-import { DomainBar, OfflineBanner } from '@/components/timetable';
-import { Banner, Button, Card, EmptyState, ErrorState, LoadingState, Pill, Row, Screen, Spacer, StatusPill, Text } from '@/components/ui';
+import { DomainBar, OfflineBanner, TimetableStatus } from '@/components/timetable';
+import { Banner, Button, Card, EmptyState, ErrorState, LoadingState, Pill, Row, Screen, Spacer, Text } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
 import { useAuth } from '@/state/auth';
 import { invalidateTimetableData, useDomain } from '@/state/domain';
@@ -85,7 +85,7 @@ export default function Archives() {
                   {[tt.academic_year, tt.term_label, tt.file_format, fmtDateTime(tt.uploaded_at, me?.timezone)].filter(Boolean).join(' · ')}
                 </Text>
                 <Row gap={8} style={{ marginTop: 10 }} wrap>
-                  <StatusPill status={tt.processing_status} />
+                  <TimetableStatus status={tt.processing_status} domain={domain} />
                   {isSelected && !tt.is_primary ? <Pill tone="info" icon="eye" label="Selected" /> : null}
                 </Row>
                 {tt.primary_eligible && !isSelected ? (
@@ -99,9 +99,11 @@ export default function Archives() {
           {q.hasNextPage ? <Button variant="ghost" title="Load more" loading={q.isFetchingNextPage} onPress={() => q.fetchNextPage()} /> : null}
         </View>
       )}
-      <Text variant="caption" faint style={{ marginTop: 16, textAlign: 'center' }}>
-        Statuses: Ready · Needs review (usable with warnings) · Failed/Unusable (cannot be searched)
-      </Text>
+      {canUpload ? (
+        <Text variant="caption" faint style={{ marginTop: 16, textAlign: 'center' }}>
+          Statuses: Ready · Needs review (usable with warnings) · Failed/Unusable (cannot be searched)
+        </Text>
+      ) : null}
     </Screen>
   );
 }

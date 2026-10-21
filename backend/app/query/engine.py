@@ -468,10 +468,7 @@ def h_free_check(r: Run) -> T.Result:
     return T.Result([{"subject": who, "date": d.isoformat(), "time": t.strftime("%H:%M"), "schedule_status": status,
                       "free": status == "FREE", "entries": res.items,
                       "unverified": any(i["verification_status"] != VerificationStatus.VERIFIED for i in res.items)}],
-                    result_type="SCHEDULE_STATUS", warnings=res.warnings + [{
-                        "code": "FREE_MEANS_UNSCHEDULED",
-                        "message": "“Free” means nothing is scheduled in the selected timetable — not confirmed availability."}],
-                    meta=res.meta)
+                    result_type="SCHEDULE_STATUS", warnings=res.warnings, meta=res.meta)
 
 
 def _busy_only(it: dict) -> dict:

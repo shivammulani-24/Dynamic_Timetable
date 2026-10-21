@@ -6,8 +6,8 @@ import type { Clarification, Entry, SearchResponse } from '@/api/types';
 import { fmtDate, fmtDuration, fmtRange, fmtTime, plural } from '@/lib/format';
 import { useTheme } from '@/theme/theme';
 
-import { EntryCard, Timeline, useH24, WarningsList } from './timetable';
-import { Banner, Button, Card, Chip, EmptyState, Pill, Row, StatusPill, Text } from './ui';
+import { EntryCard, Timeline, TimetableStatus, useH24, WarningsList } from './timetable';
+import { Banner, Button, Card, Chip, EmptyState, Pill, Row, Text } from './ui';
 
 /** Renders a search envelope by its stable `status` and `result_type` codes. */
 export function SearchResult({ res, onChoose }: { res: SearchResponse; onChoose: (value: Record<string, unknown>) => void }) {
@@ -175,7 +175,7 @@ export function SearchResult({ res, onChoose }: { res: SearchResponse; onChoose:
               {tt.is_primary ? <Pill tone="primary" icon="star" label="Primary" /> : null}
             </Row>
             <Row gap={8} style={{ marginTop: 6 }}>
-              <StatusPill status={tt.processing_status} />
+              <TimetableStatus status={tt.processing_status} domain={tt.domain} />
               <Text variant="caption" muted>
                 {tt.academic_year ?? ''} {fmtDate(tt.uploaded_at?.slice(0, 10))}
               </Text>

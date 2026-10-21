@@ -264,7 +264,7 @@ def test_q13_ampm_and_date_clarification(client):
     j = ask(client, "alice", "Am I free at 9:30 am today?")
     assert j["intent_id"] == "Q13" and j["results"][0]["schedule_status"] == "SCHEDULED"
     j = ask(client, "alice", "Am I free at 4:30 pm today?")
-    assert j["results"][0]["free"] is True and any(w["code"] == "FREE_MEANS_UNSCHEDULED" for w in j["warnings"])
+    assert j["results"][0]["free"] is True
 
 
 def test_q14_remaining_today(client):
@@ -336,9 +336,9 @@ def test_q19_professors_for_batch(client):
 # ------------------------------------------------------------------ Q20–Q25 rooms / floors
 
 
-def test_q20_room_schedule_disclaimer(client):
+def test_q20_room_schedule(client):
     j = ask(client, "alice", "Show room 508 schedule")
-    assert j["intent_id"] == "Q20" and j["results"] and "occupancy" in j["meta"]["disclaimer"]
+    assert j["intent_id"] == "Q20" and j["results"]
 
 
 def test_q21_room_free_now_and_at_time(client):

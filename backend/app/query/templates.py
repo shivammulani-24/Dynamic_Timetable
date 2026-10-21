@@ -347,8 +347,7 @@ def qt13_professor_free(q: Q, f: Filters, d: date) -> Result:
         free.append((cur, we))
     items = [{"start_time": a.strftime("%H:%M"), "end_time": b.strftime("%H:%M"),
               "duration_minutes": int((datetime.combine(d, b) - datetime.combine(d, a)).total_seconds() // 60)} for a, b in free]
-    warnings = [{"code": "FREE_MEANS_UNSCHEDULED",
-                 "message": "Free means no class in this timetable within configured working hours — not confirmed availability."}]
+    warnings = []
     if uncertain:
         warnings.append({"code": "UNCERTAIN_TIMES_TREATED_BUSY",
                          "message": f"{uncertain} class(es) with unverified times were treated as busy, so free time may be understated."})
@@ -391,8 +390,7 @@ def qt15_room_schedule(q: Q, f: Filters, d: date | None = None, dow: int | None 
         base = base.where(q.on_date(d))
     elif dow:
         base = base.where(q.on_dow(dow))
-    return Result(q.items(q.fetch(base), d), meta={"date": d.isoformat() if d else None, "day_of_week": dow,
-                                                    "disclaimer": "Scheduled use only — not verified physical occupancy."})
+    return Result(q.items(q.fetch(base), d), meta={"date": d.isoformat() if d else None, "day_of_week": dow})
 
 
 def qt16_room_free(q: Q, f: Filters, at: datetime) -> Result:
@@ -411,8 +409,7 @@ def qt16_room_free(q: Q, f: Filters, at: datetime) -> Result:
     item = {"room": f.room[0].display if f.room else None, "date": d.isoformat(), "time": t.strftime("%H:%M"),
             "scheduled_status": status, "scheduled_free": status == "NO_SCHEDULED_CLASS", "entries": q.items(rows, d),
             "unverified": unverified_room}
-    return Result([item], result_type="ROOM_STATUS", warnings=warnings,
-                  meta={"disclaimer": "“Free” means no class scheduled in this timetable — not verified physical occupancy."})
+    return Result([item], result_type="ROOM_STATUS", warnings=warnings)
 
 
 def _floor_rooms(db: Session, floor: int | None):
@@ -449,8 +446,7 @@ def qt17_free_rooms(q: Q, at: datetime, floor: int | None) -> Result:
             continue
         items.append({"room": r.room_code, "room_id": r.room_id, "floor": r.floor_label, "building": r.building,
                       "capacity": r.capacity, "room_type": r.room_type})
-    warnings = [{"code": "FREE_MEANS_UNSCHEDULED",
-                 "message": "Rooms listed have no class scheduled in this timetable at that time — not verified physical availability."}]
+    warnings = []
     if not rooms:
         warnings.append({"code": "ROOM_INVENTORY_MISSING", "message": "No rooms are in the inventory" + (f" for floor {floor}" if floor is not None else "") + "."})
     if not_confirmed:
