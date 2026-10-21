@@ -53,7 +53,9 @@ Alternative: `docker compose up --build` runs Postgres + API + worker (see `docs
 the compose file is syntax-validated, but the image was not built in the authoring sandbox, which
 has no Docker daemon).
 
-**Testing on your phone:** step-by-step guide in [`docs/11-run-on-phone.md`](docs/11-run-on-phone.md).
+**Testing on your phone or laptop:** step-by-step guide in [`docs/11-run-on-phone.md`](docs/11-run-on-phone.md).
+On Windows, after the one-time set-up, double-click `scripts\start-windows.bat`: it starts the server,
+worker and app, opens the app in the laptop's browser and shows a QR code for the phone.
 
 ### Accounts after `scripts/dev.sh seed-college` (real timetable)
 

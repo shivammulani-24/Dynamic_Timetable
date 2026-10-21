@@ -6,7 +6,15 @@
     "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "paths": { "@/*": ["./src/*"] }
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "jest-env.d.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "jest-env.d.ts"
+  ]
 }

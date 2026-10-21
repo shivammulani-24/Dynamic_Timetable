@@ -1,4 +1,4 @@
-# Running and testing on your phone (with the college's real timetable)
+# Running and testing on your phone and laptop (with the college's real timetable)
 
 This runs the backend on your laptop and the app on your Android phone or iPhone through **Expo Go**.
 Total time the first time: about 30–45 minutes, mostly installs.
@@ -86,6 +86,26 @@ The app finds the server by itself (same IP as the QR code, port 8000). If it sh
 server", create `mobile/.env` with `EXPO_PUBLIC_API_URL=http://<laptop-IP>:8000` and restart
 `npx expo start`. If the QR code won't load at all on your network, use `npx expo start --tunnel` for
 the app bundle (the API must still be reachable, as in step 5).
+
+### 6a. One-click start on Windows (laptop browser + phone)
+
+After steps 1–4 are done once, you can skip steps 5–6: double-click **`scripts\start-windows.bat`**.
+It opens three windows (server, worker, app), finds the laptop's Wi-Fi address for the phone, and
+opens the app in the laptop's browser. Close the three windows to stop.
+
+### 6b. Using the app on the laptop itself
+
+The same app runs in a laptop browser — nothing extra to install:
+
+* With the server and worker running (step 5), run `npx expo start --web` in `mobile`
+  (or press **w** in an `npx expo start` window). It opens **http://localhost:8081**.
+* On a wide screen the app shows as a centred column. A page refresh keeps you signed in; closing
+  the tab signs you out (the login is kept only for that browser tab).
+* Uploads use the browser's file picker. Push notifications are not available in the browser;
+  in-app notifications work.
+* PowerShell says *"running scripts is disabled"* for `npx`/`npm`? Run once:
+  `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or use `npx.cmd` / `npm.cmd`, or use
+  Command Prompt instead.
 
 ## 7. What to test (password for every account: `Demo@12345`)
 
