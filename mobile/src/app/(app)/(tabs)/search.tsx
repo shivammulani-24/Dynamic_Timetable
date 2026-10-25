@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, type ScrollViewInstance, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { ApiError } from '@/api/client';
@@ -40,7 +40,7 @@ export default function SearchScreen() {
   const params = useLocalSearchParams<{ q?: string }>();
   const [text, setText] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const nextId = useRef(1);
 
   const history = useQuery({ queryKey: ['history'], queryFn: api.getHistory });

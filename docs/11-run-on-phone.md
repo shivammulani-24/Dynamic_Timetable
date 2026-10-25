@@ -157,7 +157,7 @@ Expo Go is for testing. To get an installable app:
 | Symptom | Fix |
 |---|---|
 | "Can't reach the server" | Phone browser → `http://<laptop-IP>:8000/healthz`. Firewall / hotspot / `EXPO_PUBLIC_API_URL` (step 6) |
-| Expo Go says the project needs a newer/older SDK | Update Expo Go from the store. If it still doesn't match, use a development build (`eas build --profile development`) |
+| Expo Go says *"Project is incompatible with this version of Expo Go"* | Expo Go only runs the newest SDK (on iPhone you can't install an older Expo Go). This project uses **SDK 58**: run `git pull` and then `npm ci` in `mobile`. When Expo releases a newer SDK, the project must be upgraded too |
 | Upload stays at *Queued* | The worker terminal (step 5) isn't running |
 | Photo / scanned PDF fails | Install Tesseract; on Windows set `TESSERACT_CMD` in `backend/.env` |
 | `.xls`/`.doc` fails | Install LibreOffice (or save as `.xlsx`/`.docx`) |

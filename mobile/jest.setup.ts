@@ -13,3 +13,10 @@ jest.mock('expo-secure-store', () => {
 jest.mock('expo-haptics', () => ({ selectionAsync: jest.fn(() => Promise.resolve()) }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() } }));
 process.env.EXPO_PUBLIC_API_URL = 'https://api.test';
+// Icon fonts can't be loaded in Jest (SDK 58's font loader needs the native asset registry).
+// Icons render nothing in tests; assertions are on text and behaviour.
+jest.mock('@expo/vector-icons', () => {
+  const Icon = () => null;
+  Icon.glyphMap = {};
+  return { Ionicons: Icon };
+});

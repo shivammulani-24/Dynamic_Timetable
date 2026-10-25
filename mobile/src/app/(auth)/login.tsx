@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, type TextInput } from 'react-native';
+import { KeyboardAvoidingView, Platform, type TextInputInstance } from 'react-native';
 import { z } from 'zod';
 
 import { ApiError } from '@/api/client';
@@ -18,7 +18,7 @@ type Form = z.infer<typeof schema>;
 export default function Login() {
   const { signIn } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const pwRef = useRef<TextInput>(null);
+  const pwRef = useRef<TextInputInstance>(null);
   const { control, handleSubmit, formState } = useForm<Form>({ resolver: zodResolver(schema), defaultValues: { email: '', password: '' } });
 
   const submit = handleSubmit(async (v) => {
@@ -82,7 +82,7 @@ export default function Login() {
               autoComplete="password"
               textContentType="password"
               returnKeyType="go"
-              onSubmitEditing={submit}
+              onSubmitEditing={() => submit()}
               value={field.value}
               onChangeText={field.onChange}
               onBlur={field.onBlur}

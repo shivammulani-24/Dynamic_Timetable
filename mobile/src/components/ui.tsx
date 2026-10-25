@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
   type StyleProp,
+  type TextInputInstance,
   type TextInputProps,
   type TextProps,
   type TextStyle,
@@ -361,7 +362,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 }
 
 // ------------------------------------------------------------------ inputs
-export const TextField = forwardRef<TextInput, TextInputProps & { label: string; error?: string; hint?: string }>(function TextField(
+export const TextField = forwardRef<TextInputInstance, TextInputProps & { label: string; error?: string; hint?: string }>(function TextField(
   { label, error, hint, style, ...rest },
   ref,
 ) {

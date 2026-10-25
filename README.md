@@ -7,7 +7,7 @@ extraction (PDF, Excel, CSV, Word, JPG/PNG with OCR), an auditable review/correc
 (Q01–Q30) and parameterised query templates (QT01–QT22) — never to free-form SQL.
 
 ```
-React Native (Expo SDK 57, TypeScript strict)  ──HTTPS──▶  FastAPI (Python 3.13)
+React Native (Expo SDK 58, TypeScript strict)  ──HTTPS──▶  FastAPI (Python 3.13)
   Expo Router · TanStack Query · RHF + Zod                    ├─ Auth & RBAC (Argon2id, JWT + rotating refresh tokens)
   SecureStore for credentials                                 ├─ Search-context resolver (domain / timetable / timezone)
                                                               ├─ Query engine: rule-based NLP → intent registry → QT templates
