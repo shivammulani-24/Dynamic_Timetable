@@ -47,8 +47,8 @@ class Settings(BaseSettings):
     expo_push_enabled: bool = False
     expo_push_url: str = "https://exp.host/--/api/v2/push/send"
 
-    # Email (optional). When unset in development, tokens are returned in API responses
-    # flagged dev_only so the flows can be demonstrated without an SMTP server.
+    # Email (optional). Without it, activation codes are shown to the Admin who creates the account
+    # (Admin-only response) and, in development only, reset codes are printed in the server log.
     smtp_host: str | None = None
     smtp_port: int = 587
     smtp_user: str | None = None
@@ -57,6 +57,26 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["*"]
     log_level: str = "INFO"
+
+    # Single-service hosting (e.g. a free cloud tier): serve the exported web app from this server
+    # and process uploads in a background thread of the API process instead of a separate worker.
+    web_dist_dir: Path | None = None
+    run_worker_in_process: bool = False
+
+    # Demo deployments only: load the college demo data into an EMPTY database on start-up.
+    # In production this needs ALLOW_DEMO_SEED=true and a private DEMO_PASSWORD (never the
+    # published development password).
+    allow_demo_seed: bool = False
+    demo_password: str | None = None
+
+    @field_validator("database_url")
+    @classmethod
+    def _db_url(cls, v: str) -> str:
+        # Hosting providers hand out postgres:// or postgresql:// URLs; SQLAlchemy needs the driver.
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg://" + v[len(prefix):]
+        return v
 
     @field_validator("environment")
     @classmethod
@@ -70,9 +90,20 @@ class Settings(BaseSettings):
         return self.environment == "production"
 
     @property
-    def dev_tokens_exposed(self) -> bool:
-        """Expose invitation/reset tokens in responses only outside production when no SMTP."""
-        return not self.is_production and not self.smtp_host
+    def email_configured(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from)
+
+    @property
+    def invitation_codes_shown_to_admin(self) -> bool:
+        """Without email, the Admin who creates/re-invites an account is shown its activation code
+        (in that authenticated Admin response only) to hand over in person."""
+        return not self.email_configured
+
+    @property
+    def reset_codes_in_server_log(self) -> bool:
+        """Development without email: password-reset codes are printed in the server's own log so the
+        person running the server can test the flow. Never in production, never in an API response."""
+        return not self.is_production and not self.email_configured
 
     def validate_for_production(self) -> None:
         if self.is_production:
@@ -80,6 +111,9 @@ class Settings(BaseSettings):
                 raise RuntimeError("JWT_SECRET must be set to a strong secret in production")
             if "*" in self.cors_origins:
                 raise RuntimeError("CORS_ORIGINS must be explicit in production")
+            if self.allow_demo_seed and (not self.demo_password or len(self.demo_password) < 10
+                                         or self.demo_password == "Demo@12345"):
+                raise RuntimeError("DEMO_PASSWORD (10+ characters, not the published one) is required for a demo seed")
 
 
 @lru_cache

@@ -89,14 +89,14 @@ def test_role_escalation_not_possible_via_client(client, f):
     assert r.status_code == 403
 
 
-def test_invitation_activation_and_password_reset(client, f):
+def test_invitation_activation_and_password_reset(client, f, caplog):
     dept = f.dept()
     admin_u, _ = f.staff(RoleCode.ADMIN, dept=dept)
     h = f.auth(admin_u)
     r = client.post("/api/v1/admin/staff", headers=h, json={
         "email": "newprof@college.edu", "display_name": "Prof. New", "roles": ["PROFESSOR"], "department_id": dept.department_id})
     assert r.status_code == 201, r.text
-    token = r.json()["dev_invitation_token"]
+    token = r.json()["invitation_code"]  # shown to the Admin only because no email is configured
     assert login(client, "newprof@college.edu").status_code == 401  # not activated yet
     weak = client.post("/api/v1/auth/activate", json={"token": token, "password": "short"})
     assert weak.status_code == 400
@@ -106,11 +106,16 @@ def test_invitation_activation_and_password_reset(client, f):
     assert again.status_code == 400  # single use
     assert login(client, "newprof@college.edu", "GoodPassword9").status_code == 200
 
+    caplog.set_level("WARNING")
     rr = client.post("/api/v1/auth/password-reset/request", json={"email": "newprof@college.edu"})
     assert rr.status_code == 202
-    reset = rr.json()["dev_reset_token"]
+    # P0-1 regression: the unauthenticated response never carries the code (anyone could call it).
+    assert set(rr.json()) == {"status", "message"}
+    # Development without email: the code appears only in the server's own log.
+    line = next(r.getMessage() for r in caplog.records if "password reset code" in r.getMessage())
+    reset = line.rsplit(": ", 1)[1].strip()
     unknown = client.post("/api/v1/auth/password-reset/request", json={"email": "ghost@college.edu"})
-    assert unknown.status_code == 202 and "dev_reset_token" not in unknown.json()
+    assert unknown.status_code == 202 and set(unknown.json()) == {"status", "message"}
     assert client.post("/api/v1/auth/password-reset/confirm", json={"token": reset, "password": "Another1Pass"}).status_code == 200
     assert login(client, "newprof@college.edu", "Another1Pass").status_code == 200
 
@@ -146,3 +151,34 @@ def test_login_rate_limited(client, f):
     f.user(RoleCode.STUDENT, email="rl@college.edu")
     codes = [login(client, "rl@college.edu", "bad-password1").status_code for _ in range(12)]
     assert 429 in codes
+
+
+def test_reset_code_never_logged_in_production(client, f, caplog, monkeypatch):
+    from app.config import get_settings
+
+    u = f.user(RoleCode.STUDENT)
+    monkeypatch.setattr(type(get_settings()), "is_production", property(lambda self: True))
+    caplog.set_level("WARNING")
+    r = client.post("/api/v1/auth/password-reset/request", json={"email": u.college_email})
+    assert r.status_code == 202 and set(r.json()) == {"status", "message"}
+    assert not any("password reset code" in x.getMessage() for x in caplog.records)
+
+
+def test_admin_issued_access_code_resets_an_active_account(client, f):
+    dept = f.dept()
+    admin_u, _ = f.staff(RoleCode.ADMIN, dept=dept)
+    student = f.user(RoleCode.STUDENT)
+    old = login(client, student.college_email)
+    assert old.status_code == 200
+    r = client.post(f"/api/v1/admin/users/{student.user_id}/reinvite", headers=f.auth(admin_u))
+    assert r.status_code == 200 and r.json()["invitation_code"]
+    ok = client.post("/api/v1/auth/activate", json={"token": r.json()["invitation_code"], "password": "BrandNew9pass"})
+    assert ok.status_code == 200
+    assert login(client, student.college_email, "BrandNew9pass").status_code == 200
+    # the session from before the reset is gone
+    refresh = client.post("/api/v1/auth/refresh", json={"refresh_token": old.json()["refresh_token"]})
+    assert refresh.status_code == 401
+    # only the Admin can issue it (fresh student login; the old one was revoked above)
+    fresh = login(client, student.college_email, "BrandNew9pass").json()["access_token"]
+    assert client.post(f"/api/v1/admin/users/{student.user_id}/reinvite",
+                       headers={"Authorization": f"Bearer {fresh}"}).status_code == 403

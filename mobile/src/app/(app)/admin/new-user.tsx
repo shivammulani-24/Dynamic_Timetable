@@ -35,7 +35,7 @@ export default function NewUser() {
           : await api.adminCreateStaff({
               email: f.email.trim(), display_name: f.name.trim(), roles, department_id: dept, short_code: f.short_code || null, designation: f.designation || null,
             });
-      setResult({ ok: true, text: r.invitation_email_sent ? 'Invitation emailed.' : 'Account created. Share the activation code securely.', token: r.dev_invitation_token });
+      setResult({ ok: true, text: r.invitation_email_sent ? 'Invitation emailed.' : 'Account created. Share the activation code securely.', token: r.invitation_code });
       qc.invalidateQueries({ queryKey: ['admin-users'] });
       setF({ ...f, email: '', name: '', uid: '', short_code: '', designation: '' });
     } catch (e) {
@@ -58,7 +58,7 @@ export default function NewUser() {
           : 'Roles are assigned here by the Admin; users never choose their own role.'}
       </Text>
       <Spacer />
-      {result ? <Banner tone={result.ok ? 'success' : 'danger'} title={result.text} body={result.token ? `Development activation code: ${result.token}` : undefined} /> : null}
+      {result ? <Banner tone={result.ok ? 'success' : 'danger'} title={result.text} body={result.token ? `Activation code: ${result.token} — give it to them directly; they open the app → Activate account.` : undefined} /> : null}
       <Spacer />
       <TextField label="College email" value={f.email} onChangeText={set('email')} autoCapitalize="none" keyboardType="email-address" />
       <TextField label="Full name" value={f.name} onChangeText={set('name')} />

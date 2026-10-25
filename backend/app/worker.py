@@ -13,6 +13,7 @@ import logging
 import os
 import signal
 import socket
+import threading
 import time
 from datetime import timedelta
 from decimal import Decimal
@@ -224,6 +225,26 @@ def drain(max_jobs: int = 100) -> int:
 _running = True
 
 
+def _loop(should_run) -> None:
+    while should_run():
+        try:
+            if process_next() is None:
+                time.sleep(get_settings().worker_poll_seconds)
+        except Exception:  # noqa: BLE001 — keep the worker alive (e.g. DB restart)
+            log.exception("worker loop error")
+            time.sleep(5)
+
+
+def start_in_process() -> threading.Thread:
+    """Run the worker loop in a daemon thread of the API process (single-service hosting, e.g. a free
+    cloud tier with no separate worker). Jobs are claimed with SKIP LOCKED, so it is safe alongside
+    a separate worker too."""
+    t = threading.Thread(target=_loop, args=(lambda: _running,), name="in-process-worker", daemon=True)
+    t.start()
+    log.info("in-process worker %s started", WORKER_ID)
+    return t
+
+
 def main() -> None:
     configure_logging(get_settings().log_level)
     log.info("worker %s started", WORKER_ID)
@@ -234,13 +255,7 @@ def main() -> None:
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    while _running:
-        try:
-            if process_next() is None:
-                time.sleep(get_settings().worker_poll_seconds)
-        except Exception:  # noqa: BLE001 — keep the worker alive (e.g. DB restart)
-            log.exception("worker loop error")
-            time.sleep(5)
+    _loop(lambda: _running)
     log.info("worker stopped")
 
 

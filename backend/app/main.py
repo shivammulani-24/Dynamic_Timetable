@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import text
 
 from app.config import get_settings
@@ -95,7 +96,38 @@ def create_app() -> FastAPI:
             c.execute(text("SELECT 1"))
         return {"status": "OK"}
 
+    if settings.web_dist_dir:
+        _serve_web_app(app, Path(settings.web_dist_dir).resolve())
+
+    if settings.run_worker_in_process:
+        @app.on_event("startup")
+        def _start_worker() -> None:
+            from app.worker import start_in_process
+
+            start_in_process()
+
     return app
+
+
+def _serve_web_app(app: FastAPI, root: Path) -> None:
+    """Serve the exported web app (single-page) from the same origin as the API: files as they are,
+    any other path → index.html so in-app links survive a refresh. /api/* never falls through."""
+    index = root / "index.html"
+    if not index.is_file():
+        log.warning("WEB_DIST_DIR %s has no index.html; web app not served", root)
+        return
+
+    # GET and HEAD: the app's connectivity check (NetInfo on web) sends HEAD / — answering 405 there
+    # makes the app believe it is offline and pause all data loading.
+    @app.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
+    def web_app(path: str):
+        if path == "api" or path.startswith("api/"):
+            raise AppError(Code.NOT_FOUND, "Not found.")
+        target = (root / path).resolve()
+        if path and target.is_file() and root in target.parents:
+            cache = "public, max-age=31536000, immutable" if "/_expo/static/" in f"/{path}" else "no-cache"
+            return FileResponse(target, headers={"Cache-Control": cache})
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
 
 
 app = create_app()

@@ -162,3 +162,4 @@ Expo Go is for testing. To get an installable app:
 | Photo / scanned PDF fails | Install Tesseract; on Windows set `TESSERACT_CMD` in `backend/.env` |
 | `.xls`/`.doc` fails | Install LibreOffice (or save as `.xlsx`/`.docx`) |
 | Login says invalid credentials | Re-run step 4 (the seed resets the database) |
+| Forgot password on the laptop server | No email is set up, so the reset code is printed in the **server window** (development only — never sent to the app). Or, as Admin: *Admin → Users → the person → Issue new access code* |

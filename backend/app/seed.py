@@ -43,9 +43,16 @@ DEMO_PASSWORD = "Demo@12345"
 DOMAIN = "demo.college.edu"
 
 
+def demo_password() -> str:
+    """The published development password, or DEMO_PASSWORD when set (required for a hosted demo)."""
+    return get_settings().demo_password or DEMO_PASSWORD
+
+
 def _guard() -> None:
-    if get_settings().is_production:
-        sys.exit("Refusing to seed demo accounts: ENVIRONMENT=production.")
+    s = get_settings()
+    if s.is_production and not s.allow_demo_seed:
+        sys.exit("Refusing to seed demo accounts: ENVIRONMENT=production (set ALLOW_DEMO_SEED=true and a private "
+                 "DEMO_PASSWORD only for a demo deployment).")
 
 
 def reset_database() -> None:
@@ -112,7 +119,7 @@ def seed_master(db) -> dict:
     db.flush()
 
     def account(email, name, *role_codes, status=AccountStatus.ACTIVE):
-        u = UserAccount(college_email=f"{email}@{DOMAIN}", display_name=name, password_hash=hash_password(DEMO_PASSWORD),
+        u = UserAccount(college_email=f"{email}@{DOMAIN}", display_name=name, password_hash=hash_password(demo_password()),
                         account_status=status, timezone_id="Asia/Kolkata")
         db.add(u)
         db.flush()
@@ -198,7 +205,7 @@ def main() -> None:
         info = seed_master(db)
         if not args.no_timetables:
             seed_timetables(db, info)
-    print(f"Demo data ready. Accounts use password {DEMO_PASSWORD!r} (development only):")
+    print("Demo data ready. Accounts use the demo password (development only):")
     for e in ("admin", "principal", "kkd (HOD+Professor)", "avn", "pjb", "rhs", "ithod", "alice", "bob", "chitra", "dev", "newbie"):
         print(f"  {e.split(' ')[0]}@{DOMAIN}  {e[len(e.split(' ')[0]):].strip()}")
 

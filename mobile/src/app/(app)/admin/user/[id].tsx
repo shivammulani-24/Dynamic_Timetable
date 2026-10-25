@@ -28,7 +28,7 @@ export default function AdminUser() {
   const err = (e: ApiError) => notify('Not changed', e.message);
   const saveRoles = useMutation({ mutationFn: () => api.adminSetRoles(id, roles), onSuccess: done, onError: err });
   const setStatus = useMutation({ mutationFn: (s: string) => api.adminSetStatus(id, s), onSuccess: done, onError: err });
-  const reinvite = useMutation({ mutationFn: () => api.adminReinvite(id), onSuccess: (r) => { setDevToken(r.dev_invitation_token ?? null); done(); }, onError: err });
+  const reinvite = useMutation({ mutationFn: () => api.adminReinvite(id), onSuccess: (r) => { setDevToken(r.invitation_code ?? null); done(); }, onError: err });
 
   if (q.isLoading) return <LoadingState />;
   if (q.error || !q.data) return <ErrorState error={q.error} onRetry={q.refetch} />;
@@ -59,6 +59,15 @@ export default function AdminUser() {
 
       <SectionHeader title="Account status" />
       <Row wrap gap={8}>
+        {u.account_status === 'ACTIVE' ? (
+          <Button
+            small
+            variant="secondary"
+            title="Issue new access code"
+            loading={reinvite.isPending}
+            onPress={() => confirmAction('Issue a new access code?', 'For a forgotten password: they enter the code on "Activate account" and choose a new password. Their current sessions end.', 'Issue code', () => reinvite.mutate())}
+          />
+        ) : null}
         {u.account_status === 'INVITED' ? (
           <Button small variant="secondary" title="Re-send invitation" loading={reinvite.isPending} onPress={() => reinvite.mutate()} />
         ) : (
@@ -78,7 +87,7 @@ export default function AdminUser() {
       {devToken ? (
         <>
           <Spacer />
-          <Banner tone="info" title="Development server: activation code" body={devToken} />
+          <Banner tone="info" title="Access code — give it to the person directly" body={`${devToken}\nThey open the app → Activate account → enter this code and choose a new password. Shown once.`} />
         </>
       ) : null}
 

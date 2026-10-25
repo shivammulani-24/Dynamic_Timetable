@@ -25,9 +25,7 @@ export default function Forgot() {
     setError(null);
     try {
       const r = await api.requestReset(v.email);
-      // dev_reset_token is only returned by non-production servers without SMTP (development convenience).
-      if (r.dev_reset_token) resetForm.setValue('token', r.dev_reset_token);
-      setInfo(r.message + (r.dev_reset_token ? ' (Development server: code pre-filled.)' : ''));
+      setInfo(r.message);
       setStep('code');
     } catch (e) {
       setError((e as ApiError).message);

@@ -53,6 +53,9 @@ Alternative: `docker compose up --build` runs Postgres + API + worker (see `docs
 the compose file is syntax-validated, but the image was not built in the authoring sandbox, which
 has no Docker daemon).
 
+**Free online demo (no Expo Go, one link for iPhone/Android/laptop):** [`docs/12-deploy-free.md`](docs/12-deploy-free.md) —
+Render blueprint in `render.yaml`, single-service image in `deploy/`.
+
 **Testing on your phone or laptop:** step-by-step guide in [`docs/11-run-on-phone.md`](docs/11-run-on-phone.md).
 On Windows, after the one-time set-up, double-click `scripts\start-windows.bat`: it starts the server,
 worker and app, opens the app in the laptop's browser and shows a QR code for the phone.
@@ -131,6 +134,7 @@ Push notifications additionally require an EAS project id (`extra.eas.projectId`
 9. `docs/09-demo-script.md` — a 10-minute walkthrough
 10. `docs/10-limitations-and-next-steps.md` — honest list of what is not done / not verified
 11. `docs/11-run-on-phone.md` — run the backend + app on your phone with the real timetable, test checklist
+12. `docs/12-deploy-free.md` — free online demo on Render (web app link, no Expo Go)
 
 ## The college's real timetable
 

@@ -28,6 +28,7 @@ from datetime import date, time
 
 from sqlalchemy import select
 
+from app.config import get_settings
 from app.enums import AccountStatus, Domain, HistoryStatus, RoleCode, VerificationStatus
 from app.extraction.pipeline import run_extraction
 from app.models import (
@@ -48,7 +49,7 @@ from app.models import (
 )
 from app.security.passwords import hash_password
 from app.security.principal import load_principal
-from app.seed import DEMO_PASSWORD, DOMAIN, _guard, reset_database
+from app.seed import DOMAIN, _guard, demo_password, reset_database
 from app.services.mapping import GROUP_SUFFIX, course_keys
 from app.services.matching import normalize_label
 
@@ -150,7 +151,7 @@ def seed(pdf_path: str) -> dict:
         # ---------------------------------------------------------------- staff
         def account(login: str, name: str, *role_codes: RoleCode) -> UserAccount:
             u = UserAccount(college_email=f"{login}@{DOMAIN}", display_name=name[:120],
-                            password_hash=hash_password(DEMO_PASSWORD), account_status=AccountStatus.ACTIVE,
+                            password_hash=hash_password(demo_password()), account_status=AccountStatus.ACTIVE,
                             timezone_id="Asia/Kolkata")
             db.add(u)
             db.flush()
@@ -232,16 +233,27 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--reset", action="store_true", help="drop and recreate the schema first (DESTROYS DATA)")
     ap.add_argument("--pdf", default=DEFAULT_PDF, help="timetable PDF to load (default: the college reference PDF)")
+    ap.add_argument("--if-empty", action="store_true",
+                    help="seed only when the database has no accounts yet (safe to run on every start-up)")
     args = ap.parse_args()
     _guard()
     if args.reset:
+        if get_settings().is_production:
+            raise SystemExit("--reset is not allowed when ENVIRONMENT=production.")
         reset_database()
+    if args.if_empty:
+        from app.db import session_factory
+
+        with session_factory()() as db:
+            if db.scalar(select(UserAccount.user_id).limit(1)) is not None:
+                print("Database already has accounts; demo seed skipped.")
+                return
     info = seed(args.pdf)
     verified = info["counts"].get(VerificationStatus.VERIFIED, 0)
     total = sum(info["counts"].values())
     print(f"Loaded {args.pdf}: {total} classes ({verified} verified) — statuses {info['counts']}")
     print(f"Master data: {info['batches']} batches, {info['courses']} courses, {info['staff']} faculty, {info['rooms']} rooms.")
-    print(f"Accounts (password {DEMO_PASSWORD!r}, development only):")
+    print("Accounts (password: the demo password — Demo@12345 locally, or DEMO_PASSWORD when set):")
     print(f"  admin@{DOMAIN}            Admin")
     print(f"  principal@{DOMAIN}        Principal")
     print(f"  snd@{DOMAIN}              HOD + Professor (SND)   — every faculty code works: kkd@, avn@, js@ …")

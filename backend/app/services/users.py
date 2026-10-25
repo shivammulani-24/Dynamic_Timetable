@@ -63,8 +63,8 @@ def _invitation_result(user: UserAccount, token: str) -> dict:
     sent = send_email(user.college_email, "Activate your timetable account",
                       f"Your activation code: {token}\nOpen the app and choose 'Activate account'.")
     out: dict = {"user_id": str(user.user_id), "invitation_email_sent": sent}
-    if get_settings().dev_tokens_exposed:
-        out["dev_invitation_token"] = token  # development only; never in production
+    if not sent and get_settings().invitation_codes_shown_to_admin:
+        out["invitation_code"] = token  # only in this Admin-authenticated response; hand over in person
     return out
 
 
@@ -122,10 +122,12 @@ def reissue_invitation(db: Session, admin: Principal, user_id: uuid.UUID) -> dic
     user = db.get(UserAccount, user_id)
     if user is None:
         raise not_found("User")
-    if user.account_status != AccountStatus.INVITED:
-        raise AppError(Code.CONFLICT, "This account has already been activated.")
+    if user.account_status not in (AccountStatus.INVITED, AccountStatus.ACTIVE):
+        raise AppError(Code.CONFLICT, "Reactivate this account before issuing a new code.")
+    # For an ACTIVE account this is an Admin-assisted password reset (no email needed): the user
+    # sets a new password with the code on "Activate account", which also signs out old sessions.
     token = create_account_token(db, user, TokenPurpose.INVITATION)
-    audit(db, "INVITATION_REISSUED", admin.user_id, "USER", user.user_id)
+    audit(db, "INVITATION_REISSUED", admin.user_id, "USER", user.user_id, account_status=user.account_status)
     db.commit()
     return _invitation_result(user, token)
 

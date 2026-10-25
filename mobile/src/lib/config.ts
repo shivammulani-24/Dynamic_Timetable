@@ -4,12 +4,15 @@ import { Platform } from 'react-native';
 /**
  * API base URL resolution (no localhost is baked into production builds):
  * 1. EXPO_PUBLIC_API_URL — set this for every deployed/build environment (must be https in production).
+ *    `same-origin` (web only): the web app is served by the API server, so requests go to /api/v1 there.
  * 2. Development only: derive the dev machine's LAN IP from the Metro host so Expo Go on a physical
  *    phone, the iOS simulator and the Android emulator reach the backend on port 8000.
  */
 export function resolveApiUrl(): string {
   const explicit = process.env.EXPO_PUBLIC_API_URL;
-  if (explicit) return explicit.replace(/\/+$/, '');
+  // Web app served by the API server itself (single-service hosting): call the API on the same origin.
+  if (explicit === 'same-origin' && Platform.OS === 'web') return '';
+  if (explicit && explicit !== 'same-origin') return explicit.replace(/\/+$/, '');
   if (__DEV__) {
     const hostUri = Constants.expoConfig?.hostUri ?? '';
     const host = hostUri.split(':')[0];

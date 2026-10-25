@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -10,6 +12,8 @@ from app.models import UserAccount
 from app.security import ratelimit
 from app.security.deps import get_current_user
 from app.services import auth as svc
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -96,10 +100,11 @@ def activate(body: ActivateIn, request: Request, db: Session = Depends(get_db)):
 def reset_request(body: ResetRequestIn, request: Request, db: Session = Depends(get_db)):
     ratelimit.check("reset", _client_key(request), 5)
     raw = svc.request_password_reset(db, body.email)
-    out: dict = {"status": "OK", "message": "If an active account exists for that email, a reset code has been sent."}
-    if raw and get_settings().dev_tokens_exposed:
-        out["dev_reset_token"] = raw
-    return out
+    # The code is NEVER returned here: anyone can call this endpoint for any email address.
+    if raw and get_settings().reset_codes_in_server_log:
+        log.warning("DEVELOPMENT ONLY (no email configured): password reset code for %s: %s", body.email, raw)
+    return {"status": "OK", "message": "If an active account exists for that email, a reset code has been sent. "
+                                       "No email? Ask the Admin office for a new access code."}
 
 
 @router.post("/password-reset/confirm")

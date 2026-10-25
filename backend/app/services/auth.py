@@ -153,6 +153,8 @@ def activate(db: Session, raw: str, password: str, timezone_id: str | None) -> t
     user = _consume(db, raw, TokenPurpose.INVITATION)
     if user.account_status not in (AccountStatus.INVITED, AccountStatus.ACTIVE):
         raise AppError(Code.INVALID_REQUEST, "This account cannot be activated. Contact the Admin office.")
+    if user.account_status == AccountStatus.ACTIVE:
+        revoke_all_sessions(db, user)  # Admin-assisted reset: old sessions must not survive
     user.password_hash = hash_password(password)
     user.account_status = AccountStatus.ACTIVE
     if timezone_id:

@@ -36,7 +36,7 @@ async function login(email) {
   await shot('01-welcome');
   await page.getByRole('button', { name: 'Sign in' }).first().click();
   await page.getByRole('textbox', { name: 'College email' }).fill(email);
-  await page.getByRole('textbox', { name: 'Password', exact: true }).fill('Demo@12345');
+  await page.getByRole('textbox', { name: 'Password', exact: true }).fill(process.env.E2E_PASSWORD || 'Demo@12345');
   await shot('02-login');
   await page.getByRole('button', { name: 'Sign in' }).last().click();
 }

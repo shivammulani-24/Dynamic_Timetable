@@ -31,7 +31,7 @@ export const logout = (refresh_token?: string) => request('/auth/logout', { meth
 export const activate = (token: string, password: string, timezone?: string) =>
   request<TokenPair>('/auth/activate', { method: 'POST', auth: false, body: { token, password, timezone } });
 export const requestReset = (email: string) =>
-  request<{ message: string; dev_reset_token?: string }>('/auth/password-reset/request', { method: 'POST', auth: false, body: { email } });
+  request<{ message: string }>('/auth/password-reset/request', { method: 'POST', auth: false, body: { email } });
 export const confirmReset = (token: string, password: string) =>
   request('/auth/password-reset/confirm', { method: 'POST', auth: false, body: { token, password } });
 export const changePassword = (current_password: string, new_password: string) =>
@@ -152,11 +152,11 @@ export const adminUsers = (q: { q?: string; role?: string; status?: string; curs
 export const adminUser = (id: string) => request<AdminUser>(`/admin/users/${id}`);
 export const adminSetRoles = (id: string, roles: Role[]) => request(`/admin/users/${id}/roles`, { method: 'PUT', body: { roles } });
 export const adminSetStatus = (id: string, account_status: string) => request(`/admin/users/${id}/status`, { method: 'PUT', body: { account_status } });
-export const adminReinvite = (id: string) => request<{ dev_invitation_token?: string }>(`/admin/users/${id}/reinvite`, { method: 'POST' });
+export const adminReinvite = (id: string) => request<{ invitation_code?: string }>(`/admin/users/${id}/reinvite`, { method: 'POST' });
 export const adminCreateStudent = (body: Record<string, unknown>) =>
-  request<{ user_id: string; dev_invitation_token?: string; invitation_email_sent: boolean }>('/admin/students', { method: 'POST', body });
+  request<{ user_id: string; invitation_code?: string; invitation_email_sent: boolean }>('/admin/students', { method: 'POST', body });
 export const adminCreateStaff = (body: Record<string, unknown>) =>
-  request<{ user_id: string; dev_invitation_token?: string; invitation_email_sent: boolean }>('/admin/staff', { method: 'POST', body });
+  request<{ user_id: string; invitation_code?: string; invitation_email_sent: boolean }>('/admin/staff', { method: 'POST', body });
 
 export type MasterKind = 'departments' | 'academic-years' | 'batches' | 'courses' | 'rooms' | 'aliases';
 export const adminList = <T = any>(kind: MasterKind) => request<{ items: T[] }>(`/admin/${kind}`);
