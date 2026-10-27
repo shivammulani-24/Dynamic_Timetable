@@ -1,0 +1,206 @@
+\section{Testing and Validation}
+
+\subsection{Testing Strategy}
+Testing followed the test pyramid: many fast unit tests, fewer integration tests, and a small number
+of end-to-end tests that drive the real user interface. Tests were written alongside each module and
+the full suite was run before every commit. The real college PDF is part of the test fixtures, so
+every change to the parser is checked against the real document (regression testing).
+
+\begin{table}[H]
+\centering
+\caption{Test suites and results (latest run)}
+\label{tab:suites}
+\small
+\begin{tabularx}{\textwidth}{@{}p{4.5cm}p{1.8cm}X@{}}
+\toprule
+\textbf{Suite (file)} & \textbf{Tests} & \textbf{What it covers}\\
+\midrule
+\texttt{test\_\allowbreak{}auth.py} & 15 & Login, tokens, rotation, reuse detection, suspension, role change, rate limit, reset-code safety\\
+\texttt{test\_\allowbreak{}extraction.py} & 24 & PDF-01\ldots PDF-13 of the extraction specification, OCR, other formats, time rules, cell grammar\\
+\texttt{test\_\allowbreak{}reference\_\allowbreak{}pdf.py} & 14 & Regression on the real college PDF (10 pages)\\
+\texttt{test\_\allowbreak{}college\_\allowbreak{}seed.py} & 15 & Real PDF end to end: seed $\rightarrow$ API as student, professor, HOD, Admin\\
+\texttt{test\_\allowbreak{}uploads\_\allowbreak{}and\_\allowbreak{}domains.py} & 13 & Upload $\rightarrow$ worker $\rightarrow$ status, primary rules, IDOR, idempotency, corrections\\
+\texttt{test\_\allowbreak{}query\_\allowbreak{}engine.py} & 57 & Every intent Q01--Q30, clarifications, domain isolation, injection text\\
+\texttt{test\_\allowbreak{}academics\_\allowbreak{}admin.py} & 13 & Registration, promotion, concurrency, master data, role matrix, conflicts\\
+\texttt{test\_\allowbreak{}deploy.py} & 8 & Web app serving, \texttt{HEAD} connectivity check, production safety\\
+\midrule
+\textbf{Back end (pytest)} & \textbf{159} & \textbf{159 passed, 0 failed}\\
+Mobile unit/component (Jest) & 18 & API client, single-flight refresh, offline cache, result renderer, status labels\\
+End-to-end (Playwright) & 22 + 21 & Real college timetable flow 22/22; synthetic smoke flow incl.\ upload 21/21\\
+TypeScript \texttt{strict} type check & -- & clean\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Unit Testing}
+Unit tests check individual functions with exact inputs and outputs. Examples:
+\texttt{test\_\allowbreak{}time\_\allowbreak{}rules} (time-label parsing and sequence resolution, including ``12.15 a.m.\ to
+01.15 p.m.''), \texttt{test\_cell\_grammar\_explicit\_time\_and\_electives} (cell parser),
+\texttt{test\_\allowbreak{}signature\_\allowbreak{}detection\_\allowbreak{}rejects\_\allowbreak{}mismatch} (plain text named \texttt{x.pdf} is rejected; a real PDF is recognised even when renamed),
+and, in Jest, the single-flight token refresh (three concurrent 401 responses produce exactly one
+refresh call).
+
+\subsection{Integration Testing}
+Integration tests use a real PostgreSQL test database and FastAPI's test client:
+\texttt{test\_\allowbreak{}personal\_\allowbreak{}upload\_\allowbreak{}processing\_\allowbreak{}and\_\allowbreak{}primary\_\allowbreak{}unchanged} uploads a file, runs the worker and
+checks the status transitions; \texttt{test\_real\_pdf\_end\_to\_end\_upload\_persist\_activate} runs the
+real PDF through upload, worker, database and activation; \texttt{test\_college\_seed.py} loads the real
+timetable and asks questions as different roles. Playwright then tests the front end, back end and
+database together in a browser.
+
+\subsection{Functional Testing}
+Each functional requirement has at least one test (Table~\ref{tab:testcases}). The intent tests are
+organised one per intent (\texttt{test\_q01\_\ldots} to \texttt{test\_q30\_\ldots}), each with valid and
+negative paths.
+
+\subsection{Non-Functional Testing}
+\begin{itemize}
+\item \textbf{Performance:} single-user latency and load tests (Chapter~8).
+\item \textbf{Security:} role escalation (\texttt{test\_role\_escalation\_not\_possible\_via\_client}),
+      IDOR (\texttt{test\_idor\_other\_users\_personal\_timetable}), SQL-injection text
+      (\texttt{test\_sql\_injection\_text\_is\_data}), raw SQL parameters rejected, rate limiting,
+      token reuse detection, reset codes never logged in production. A manual security audit (OWASP
+      categories) found one critical issue (P0-1), which was fixed and verified with 9 checks.
+\item \textbf{Reliability:} worker retry, crash recovery by heartbeat, idempotent uploads.
+\item \textbf{Usability:} the app was tried on Android and iPhone (Expo Go) and laptop browsers by the
+      team. This hands-on use led to hiding Admin review notices from students and fixing the
+      archive banner.
+\item \textbf{Portability:} Android and iOS bundles compile; the web build runs in Chrome; the Docker
+      image deploys on Render.
+\end{itemize}
+
+\subsection{Boundary and Invalid-Input Testing}
+\begin{itemize}
+\item Empty, corrupt and wrong-type files; a PDF with no table; a 0-entry result (\textsc{Unusable}).
+\item Time boundaries: back-to-back classes (9--10 and 10--11) do \emph{not} conflict (end-exclusive);
+      a class at exactly its start time is ``current''.
+\item Ambiguous inputs: ``Am I free at 2?'' (a.m./p.m.), ``5/6'' (date order), an unknown professor
+      name, a misspelled name (suggestions only).
+\item Date range larger than 31 days rejected; unknown parameters and raw SQL rejected.
+\item Invalid state transitions: an \textsc{Unusable} or \textsc{Failed} timetable cannot become
+      primary; a student cannot be promoted twice; an Admin cannot remove their own Admin role.
+\item Missing configuration: no lunch boundary, no working hours, no week start $\rightarrow$
+      clarification or explicit ``not configured'', never an assumed value.
+\end{itemize}
+
+\subsection{Concurrency and Stress Testing}
+\begin{itemize}
+\item \texttt{test\_concurrent\_activation\_single\_default}: two threads activate different timetables
+      at the same time; exactly one default results, with no lost update.
+\item \texttt{test\_concurrent\_promotions\_cannot\_create\_two\_open\_placements}: simultaneous
+      promotions of the same student; the partial unique index and row locks guarantee one open placement.
+\item Single-flight refresh under concurrent 401s (Jest).
+\item Load test up to 32 concurrent clients: 960 requests, 0 wrong answers, no deadlocks or errors
+      (Section~8.7).
+\end{itemize}
+
+\subsection{Test Case Specification}
+\begingroup\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{@{}p{1.15cm}p{1.2cm}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{2.1cm}p{0.6cm}>{\raggedright\arraybackslash}p{2.3cm}@{}}
+\caption{Test case specification}\label{tab:testcases}\\
+\toprule
+\textbf{TC} & \textbf{Req.} & \textbf{Scenario (input)} & \textbf{Expected result} & \textbf{Actual} & \textbf{P/F} & \textbf{Evidence}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{TC} & \textbf{Req.} & \textbf{Scenario (input)} & \textbf{Expected result} & \textbf{Actual} & \textbf{P/F} & \textbf{Evidence}\\
+\midrule
+\endhead
+TC-01 & FR-01 & Wrong password vs unknown user (Two bad logins) & Same generic error & As expected & P & test\_\allowbreak{}auth\\
+TC-02 & FR-01 & Refresh-token reuse (Reuse rotated token) & Whole family revoked, 401 & As expected & P & test\_\allowbreak{}auth\\
+TC-03 & FR-02 & Role escalation (Student sends \texttt{roles:[ADMIN]}) & Ignored; admin APIs 403 & As expected & P & test\_\allowbreak{}auth\\
+TC-04 & FR-03 & Wrong file type (Text file named \texttt{.pdf}) & Rejected, nothing stored & As expected & P & test\_\allowbreak{}extraction\\
+TC-05 & FR-03 & Upload does not change primary (Upload new file) & Primary unchanged & As expected & P & test\_\allowbreak{}uploads\\
+TC-06 & FR-03 & Retry same upload (Same client\_\allowbreak{}request\_\allowbreak{}id twice) & One archive record & As expected & P & test\_\allowbreak{}uploads\\
+TC-07 & FR-04 & Real PDF extraction (10-page college PDF) & $\geq$95\% verified & 452/453 (99.8\%) & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-08 & FR-04 & Stacked lab cell (Cell with A1--A4) & 4 entries, own room/teacher & As expected & P & test\_\allowbreak{}reference\_\allowbreak{}pdf\\
+TC-09 & FR-04 & Noon row typo (``12.15 a.m.\ to 01.15 p.m.'') & 12:15--13:15 with visible note & As expected & P & test\_\allowbreak{}reference\_\allowbreak{}pdf\\
+TC-10 & FR-04 & Scanned PDF (Image-only PDF) & OCR, entries \textsc{Unverified} & As expected & P & test\_\allowbreak{}extraction\\
+TC-11 & FR-05 & No-table PDF (Plain text PDF) & \textsc{Unusable}, cannot be primary & As expected & P & test\_\allowbreak{}extraction\\
+TC-12 & FR-06 & Correction audited (Admin edits room) & Original kept, audit row & As expected & P & test\_\allowbreak{}uploads\\
+TC-13 & FR-07 & Concurrent activation (2 threads activate) & Exactly one default & As expected & P & test\_\allowbreak{}academics\\
+TC-14 & FR-09 & Dashboard = query (Home vs ``next class?'') & Identical entry & As expected & P & test\_\allowbreak{}query\_\allowbreak{}engine\\
+TC-15 & FR-10 & Lab group isolation (SE-A1, Wednesday) & Only A1 labs & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-16 & FR-11 & Lunch per year (SE vs TE ``after lunch'') & 14:15 vs 13:15 from PDF & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-17 & FR-11 & Ambiguous time (``Am I free at 2?'') & Clarification a.m./p.m. & As expected & P & test\_\allowbreak{}query\_\allowbreak{}engine, e2e\\
+TC-18 & FR-11 & Injection text (``'; DROP TABLE \ldots'') & Treated as text; no SQL run & As expected & P & test\_\allowbreak{}query\_\allowbreak{}engine\\
+TC-19 & FR-11 & Cross-domain compare (Q30 question) & UNSUPPORTED, no query executed & As expected & P & test\_\allowbreak{}query\_\allowbreak{}engine\\
+TC-20 & FR-12 & Free rooms on a floor (``free rooms on floor 5 at 10'') & Rooms without overlapping class & As expected & P & test\_\allowbreak{}query\_\allowbreak{}engine\\
+TC-21 & FR-13 & Clashes in real PDF (Real timetable) & Exactly 2 genuine clashes & 2 (SP Fri; 603-2 Tue) & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-22 & FR-14 & IDOR personal (Other user's timetable id) & 404 + audit & As expected & P & test\_\allowbreak{}uploads\\
+TC-23 & FR-15 & Promotion (Preview + confirm) & History kept, new batch & As expected & P & test\_\allowbreak{}academics\\
+TC-24 & FR-15 & Concurrent promotion (2 threads) & One open placement & As expected & P & test\_\allowbreak{}academics\\
+TC-25 & FR-17 & Student without batch (``next class?'') & Setup-required message & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-26 & NFR-04 & Reset code in prod (Production, no SMTP) & Code never in response/log & As expected & P & test\_\allowbreak{}deploy\\
+TC-27 & NFR-03 & Connectivity probe (\texttt{HEAD /}) & 200 (not 405) & As expected & P & test\_\allowbreak{}deploy\\
+TC-28 & NFR-01 & Search latency (50 req/intent) & p50 $<$ 300 ms & 37--47 ms & P & Table~\ref{tab:latency}\\
+TC-29 & NFR-03 & Load (32 clients, 960 req) & 0 wrong answers & 0 & P & Table~\ref{tab:loadresults}\\
+TC-30 & UI & Full student/HOD flow (Browser, real data) & All steps pass & 22/22 & P & college.e2e.mjs\\
+\bottomrule
+\end{longtable}
+\endgroup
+
+\subsection{Defect Identification and Resolution}
+\begin{table}[H]
+\centering
+\caption{Significant defects found, fixed and re-tested}
+\label{tab:defects}
+\small
+\begin{tabularx}{\textwidth}{@{}p{1cm}p{4cm}Xp{2.3cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Defect} & \textbf{Root cause and fix} & \textbf{Re-test}\\
+\midrule
+D-1 & 542 ``conflicts'' in real PDF & Parallel labs/electives treated as clashes; added intended-overlap rules & 2 remain; test asserts exact set\\
+D-2 & Noon classes missing & ``12.15 a.m.'' rejected as invalid; added neighbour-proof rule & Regression test\\
+D-3 & Unknown legend codes shown as errors & Codes not in legend are valid; downgraded to INFO & Test\\
+D-4 & Students saw ``needs review'' warnings & Admin-only notice leaked to students; filtered by role & Test + screenshot\\
+D-5 & Archive banner shown when choosing the official timetable & Explicit selection of primary treated as archive & Test\\
+D-6 & Web app stuck on ``Loading\ldots'' & \texttt{HEAD /} returned 405 $\Rightarrow$ ``offline''; allow HEAD & Test + e2e\\
+D-7 & Account takeover via reset (P0-1) & Reset code exposed outside development; never returned/logged in production & 9 checks + test\\
+D-8 & $\approx$50 SQL statements per search & N+1 lazy loading; eager loading & $\approx$25; latency measured\\
+D-9 & App incompatible with Expo Go on iPhone & SDK 57 vs required 58; upgraded, fixed types and Jest mocks & All tests + e2e\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Validation Against KPIs}
+\begin{table}[H]
+\centering
+\caption{KPI targets (Chapter 1) vs measured results}
+\label{tab:kpivalid}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}p{2.6cm}Xp{1.4cm}@{}}
+\toprule
+\textbf{KPI} & \textbf{Target} & \textbf{Measured} & \textbf{Met?}\\
+\midrule
+Extraction verification rate & $\geq$95\% & 452/453 = 99.8\% (remaining entry has no time in the PDF) & Yes\\
+False clash reports & 0 & 0 (2 reported, both genuine) & Yes\\
+Response time (median, 1 user) & $<$300 ms & 37--47 ms & Yes\\
+Throughput (4 workers) & $\geq$30 req/s & 46.5 req/s at 4 clients, 60.4 at 8 & Yes\\
+Reliability under concurrency & 100\% & 960/960 correct at 32 clients & Yes\\
+Functional correctness & 100\% tests pass & 159/159, 18/18, 22/22, 21/21 & Yes\\
+Extraction time (10 pages) & $<$10 s & 1.65 s & Yes\\
+Memory per API worker; DB size & $<$300 MB; $<$50 MB & $\approx$115 MB; 12 MB & Yes\\
+Supported question types & $\geq$25 & 30 intents (Q01--Q30) & Yes\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Limitations and Untested Scenarios}
+\begin{itemize}
+\item \textbf{Extraction accuracy} has not been measured against a hand-labelled ground truth
+      (precision/recall). The 99.8\% figure is the share of entries the system \emph{verified itself};
+      the 2 clashes were confirmed by hand.
+\item \textbf{Capacity on production hardware} has not been tested; the load test ran on a development VM.
+\item \textbf{Push notifications} (need a store build), \textbf{SMTP e-mail} and \textbf{store builds}
+      (APK/TestFlight) have not been exercised.
+\item \textbf{Device matrix:} tried on a few phones through Expo Go and the web; no systematic
+      small-screen/large-text/accessibility audit.
+\item \textbf{Other colleges' timetable layouts} have not been tested; only our department's PDF and
+      synthetic fixtures.
+\item \textbf{Long-running operation} (database expiry, backups, multi-semester data) has not been
+      tested beyond the 30-day free-tier window.
+\end{itemize}
+
+\newpage

@@ -1,0 +1,197 @@
+\section{Introduction and Problem Definition}
+
+\subsection{Project Background}
+Every semester the timetable committee of an engineering college publishes the class timetable as a
+multi-page PDF: one grid per division for each of F.E., S.E., T.E., B.E.\ and M.Tech., with days as
+rows, time slots as columns and, below each grid, a legend that expands abbreviations such as
+\texttt{DBMS}, \texttt{KKD} or \texttt{LLC}. A single cell may contain a subject, a teacher code, a
+room number and, for practical sessions, four stacked lab sub-groups (\texttt{A1}--\texttt{A4}), each
+with its own teacher and laboratory. Electives, combined B.E.\ classes, ``Tentative'' sections and
+``W.E.F.'' (with-effect-from) dates are written in free text around the grid.
+
+Students and teachers read this document by hand many times a day: to find the next lecture, to see
+whether a lab is in 606 or 607, to locate a teacher, or to look for an empty room for a make-up
+lecture. When a revised PDF is circulated, everyone has to compare it with the old one manually.
+Clashes, for example one professor assigned to two rooms at the same time, are usually noticed only
+when they happen in the corridor. Generic calendar apps do not help, because nobody types 450 classes
+into a calendar, and timetable-generation software is used only by the committee that creates the
+timetable, not by the people who follow it.
+
+\subsection{Problem Statement}
+\begin{quote}
+\emph{Design and implement a system that converts a college's published timetable (PDF, spreadsheet,
+Word file or photograph) into verified structured data, keeps every version as an auditable archive,
+detects scheduling clashes, and lets each user (student, professor, HOD, Principal or administrator)
+get correct, role-appropriate answers to everyday timetable questions on a mobile phone or laptop,
+including questions typed in plain English, without ever exposing one user's personal data to
+another.}
+\end{quote}
+
+The difficulties with the existing approach are:
+\begin{enumerate}
+\item \textbf{Unstructured source.} The timetable exists only as a visually formatted document.
+      Merged cells, stacked lab rows, page-specific legends, inconsistent time labels (for example a
+      row printed as ``12.15--1.15'' without a.m./p.m.) and scanned pages make automatic reading hard.
+\item \textbf{Manual lookup.} Answering ``Where is my next class?'' requires locating the right
+      page, row, column and lab sub-group, and expanding the legend codes.
+\item \textbf{No conflict visibility.} Teacher, room and batch overlaps are not checked mechanically.
+\item \textbf{Version confusion.} Old and new PDFs circulate together; it is unclear which one is
+      official.
+\item \textbf{Privacy.} Students may also want to keep a personal timetable (tuition, coaching),
+      which must never be visible to the college administration.
+\end{enumerate}
+
+\subsection{Motivation}
+The problem affects every member of the college every working day. A typical department timetable
+has more than 450 class entries across ten pages, and each of several hundred students and about 50 faculty
+members consults it several times a day. Even saving one minute per lookup saves hundreds of
+person-hours per semester. More importantly, an automatically checked timetable removes clashes
+\emph{before} the semester starts. The project also gave us the opportunity to apply, in one
+realistic system, almost every core subject of the first four semesters: data structures and
+algorithms in the parser and query engine, DBMS in the schema and transactions, operating-system
+concepts in the background worker and concurrency control, computer networks in the client--server
+API, and software engineering throughout.
+
+\subsection{Objectives}
+The objectives were defined to be specific and measurable:
+\begin{enumerate}[label=\textbf{O\arabic*.}]
+\item Extract class entries from the college's real timetable PDF with at least 95\% of entries
+      verified automatically, and flag every uncertain value for human review instead of guessing.
+\item Support at least five input formats (PDF, scanned PDF/photo via OCR, XLSX/CSV, DOCX) through one
+      common pipeline.
+\item Provide role-based dashboards (current class, next class, free periods) for five roles:
+      Student, Professor, HOD, Principal and Admin, with server-side enforcement of permissions.
+\item Answer everyday questions typed in English through a deterministic engine covering at least
+      25 question types, with clarification instead of guessing when a question is ambiguous.
+\item Detect professor, room and batch clashes automatically and report only genuine clashes.
+\item Keep institutional and personal timetables strictly separate, with complete version history.
+\item Achieve a median search response time below 300~ms for a single user on modest hardware, with
+      no incorrect answers under concurrent use.
+\item Run on Android, iPhone and laptop browsers from one code base, and deploy a free online demo.
+\item Back the system with automated tests (unit, integration, end-to-end) with 100\% of tests passing
+      before every commit.
+\end{enumerate}
+
+\subsection{Scope of the Project}
+\paragraph{Features included.}
+Timetable upload and extraction (PDF, scanned PDF, JPG/PNG, XLSX, XLS, CSV, DOCX, DOC); validation,
+review and auditable correction; archive of all versions with one official (primary) timetable;
+activation notifications; conflict detection; role dashboards; weekly timetable view; natural-language
+search (30 intents); free-room and professor-availability search; personal timetables; academic-year
+promotion of students; administrator master data (departments, batches, courses, rooms, users,
+aliases); audit log.
+
+\paragraph{Features outside the scope.}
+Automatic \emph{generation} or optimisation of a timetable (the committee still creates it);
+attendance; live location tracking of teachers (the system reports only the \emph{scheduled} room);
+exam timetables; integration with the college ERP; free-form chat with a large language model.
+
+\paragraph{Intended users.}
+Students, professors, Heads of Department, the Principal and the timetable administrator.
+
+\paragraph{Operating environment.}
+Android and iOS phones (as an installable app or a home-screen web app), laptop browsers (Chrome,
+Edge, Safari, Firefox) and a Linux server or cloud container running Python 3.12+ and PostgreSQL 14+.
+
+\paragraph{Expected scale.}
+One institute: about 2{,}000--3{,}000 users, 50--100 batches, 500--1{,}000 class entries per
+timetable, a few timetable versions per semester and short bursts of concurrent use around lecture
+changes.
+
+\subsection{Proposed Solution}
+The proposed system (Figure~\ref{fig:arch}) has three parts:
+\begin{enumerate}
+\item \textbf{An extraction pipeline} that converts any supported file into a common \emph{grid}
+      model, recognises sections, time rows, lab sub-groups, legends and breaks, validates every entry
+      and assigns it a status: \textsc{Verified}, \textsc{Unverified}, \textsc{Incomplete} or
+      \textsc{Rejected}.
+\item \textbf{A central back end} (FastAPI + PostgreSQL) that stores timetables as archives, enforces
+      role-based access on every request, detects conflicts, and answers questions through a
+      rule-based natural-language engine with a fixed registry of 30 intents (Q01--Q30) and 22
+      parameterised query templates (QT01--QT22).
+\item \textbf{A cross-platform app} (React Native/Expo) with role dashboards, a weekly view, an
+      ``Ask'' screen, archives, uploads, review screens and administrator tools.
+\end{enumerate}
+
+\subsection{Novelty and Originality}
+\begin{itemize}
+\item \textbf{End-to-end from the real document.} Most student timetable apps expect the timetable to
+      be typed in. This system reads the college's actual PDF, including its specific conventions:
+      stacked lab sub-groups, page-wise legends, the 12:15 ``noon'' row, combined B.E.\ electives and
+      co-curricular LLC slots with no teacher or room.
+\item \textbf{Honest uncertainty.} Instead of silently guessing, every entry carries a verification
+      status, the raw source text and its page. Ambiguous a.m./p.m.\ is never corrected silently.
+\item \textbf{Safe natural-language queries.} Questions are mapped to a closed registry of intents and
+      parameterised templates. The engine never builds SQL from user text, which makes it immune to
+      prompt or SQL injection by construction and makes every answer reproducible.
+\item \textbf{Strict domain separation.} Institutional and personal data live in separate tables;
+      the code cannot even express a query that unions them.
+\item \textbf{Clash detection with intent awareness.} Parallel lab sub-groups and elective options are
+      recognised as intended overlaps, so only genuine clashes are reported (542 raw overlaps reduced
+      to the 2 genuine clashes in the real PDF).
+\end{itemize}
+
+\subsection{Feasibility Analysis}
+\paragraph{Technical feasibility.}
+All components use mature open-source software: PyMuPDF for PDF geometry, Tesseract for OCR,
+FastAPI and SQLAlchemy for the API, PostgreSQL for storage and Expo for the app. The team had
+working knowledge of Python, SQL and JavaScript from earlier semesters. The riskiest part, parsing
+the real PDF, was prototyped first and proved feasible (Chapter~10).
+
+\paragraph{Economic feasibility.}
+The software stack is free. Development used personal laptops. The online demo runs on Render's free
+tier (free web service and a free PostgreSQL database), so the total cost is
+\textbf{Rs.~0}. Production hosting for real students is estimated at about
+US\$7--25 per month (a small always-on instance and a managed database).
+
+\paragraph{Operational feasibility.}
+Users need only a browser or the Expo/installed app. The Admin's workflow (upload, review,
+activate) mirrors the existing manual process, and the system never changes the official timetable
+without explicit activation.
+
+\paragraph{Time and resource feasibility.}
+The work was planned over one semester in phases (requirements, back-end foundation, extraction,
+query engine, app, testing, deployment), which fits the mini-project timeline. Section~7.8 shows the
+commit history.
+
+\subsection{Social Relevance and Practical Applications}
+\begin{itemize}
+\item Students, especially first-years and students who switch divisions or electives, can find the
+      right class, lab and room instantly, reducing late arrivals and confusion.
+\item Faculty can check their own schedule and free periods, and find free rooms for extra lectures.
+\item The HOD and Principal get a clash report and a view of room usage, which supports better use of
+      classrooms and laboratories, a scarce resource in Indian colleges.
+\item The archive gives a transparent record of which timetable was official on which date.
+\item The approach transfers to schools, coaching institutes, hospitals (duty rosters) and any
+      organisation that publishes grid-style schedules as PDFs.
+\item Accessibility: the plain-English ``Ask'' screen, large tap targets and dark mode help users who
+      find dense PDF grids hard to read.
+\end{itemize}
+
+\subsection{Success Criteria and Key Performance Indicators}
+Table~\ref{tab:kpi} lists the KPIs fixed before testing. Chapter~9 (Section~9.10) compares the measured values with
+these targets.
+
+\begin{table}[H]
+\centering
+\caption{Key performance indicators and targets}
+\label{tab:kpi}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.8cm}X p{3.0cm}X@{}}
+\toprule
+\textbf{KPI} & \textbf{Definition} & \textbf{Target} & \textbf{Measurement method}\\
+\midrule
+Extraction verification rate & Verified class entries / all class entries on the real PDF & $\geq 95\%$ & Seed run on the real PDF; regression test\\
+False clash reports & Reported conflicts that are not genuine clashes & 0 & Manual check of every reported conflict against the PDF\\
+Response time & Median server time per NL search, single user & $< 300$ ms & Timestamped client measurement, 50 requests per query type\\
+Throughput & Searches served per second with 4 API workers & $\geq 30$ req/s & Multi-threaded load test (Section 8.6)\\
+Reliability & Correct responses / total requests under concurrency & 100\% & Load test, response status check\\
+Functional correctness & Passed / total automated tests & 100\% & pytest, Jest, Playwright\\
+Extraction time & Time to extract the 10-page real PDF & $< 10$ s & Timed pipeline run (median of 5)\\
+Resource usage & Memory of one API worker; database size for one timetable & $< 300$ MB; $< 50$ MB & \texttt{ps}, \texttt{pg\_database\_size}\\
+Coverage of questions & Number of supported question types (intents) & $\geq 25$ & Intent registry and its tests\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\newpage

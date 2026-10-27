@@ -1,0 +1,185 @@
+\section{Literature Review and Study of Existing Systems}
+
+\subsection{Study of Existing Systems}
+\paragraph{Manual process (current practice).}
+The timetable committee prepares the timetable in a spreadsheet or word processor and circulates a
+PDF by e-mail, on WhatsApp groups and on notice boards. Users read it by hand. The process costs
+nothing and everyone understands it, but it supports no search, no personalisation, no clash
+checking and no version control.
+
+\paragraph{Timetable generation software: FET, UniTime and aSc Timetables.}
+FET~\cite{fet} is a free, open-source timetable generator. UniTime~\cite{unitime} is an open-source,
+web-based university course timetabling and student scheduling system. aSc Timetables~\cite{asc} is a
+commercial school timetable generator. These tools solve the \emph{construction} problem: they
+assign events to time slots and rooms under hard and soft constraints, and they export the result
+as printable grids. They are used by the committee, not by students. They do not read an existing
+PDF, and their published output is again a static document.
+
+\paragraph{PDF table-extraction tools: Tabula and Camelot.}
+Tabula~\cite{tabula} and Camelot~\cite{camelot} extract tables from text-based PDFs into CSV. They
+handle ruled tables well, but they return raw cell strings: they do not understand time rows, lab
+sub-groups, legends, merged two-hour cells or a.m./p.m.\ ambiguity, and they do not work on scanned
+images without separate OCR.
+
+\paragraph{General calendar apps: Google Calendar and Outlook.}
+Calendar apps offer reminders and sharing, but every event must be entered by hand or imported from
+an iCalendar file that the college does not publish. They have no notion of roles, batches,
+rooms or room availability.
+
+\paragraph{College ERP / LMS timetable modules.}
+ERP products and learning-management systems often include a timetable module, but the data must be
+keyed in by staff, the modules are usually closed and licensed per student, and they rarely offer
+free-room search, clash reports or natural-language queries.
+
+\paragraph{Natural-language interfaces built on large language models.}
+Recent assistants translate questions into SQL with large language models (text-to-SQL). They are
+flexible, but answers are not reproducible, they can produce plausible but wrong queries, and they
+are vulnerable to prompt-injection attacks that lead to SQL injection~\cite{pedro2023,greshake2023}.
+
+\subsection{Review of Research Papers and Technical Resources}
+Table~\ref{tab:litreview} summarises the papers and technical resources reviewed, grouped by
+theme. The rest of this section discusses the most important ones.
+
+\paragraph{Timetabling.}
+Schaerf's survey~\cite{schaerf1999} classifies school, course and examination timetabling problems
+and the search techniques used to solve them. Burke and Petrovic~\cite{burke2002} review research
+directions in university timetabling, including constraint-based, meta-heuristic and hybrid methods,
+and point out the gap between research prototypes and real institutional data. Lewis~\cite{lewis2008}
+surveys meta-heuristics for university course timetabling and separates hard constraints (no clashes
+of teachers, rooms or student groups) from soft ones. These works define the clash model we
+\emph{check} after publication (professor, room and batch overlap), but they all assume that the
+timetable is created by the software. None of them addresses reading an already published timetable.
+
+\paragraph{Table recognition and OCR.}
+Zanibbi, Blostein and Cordy~\cite{zanibbi2004} survey table recognition and describe the pipeline of
+table detection, structure recognition (rows, columns, spanning cells) and interpretation. They note
+that interpretation is domain specific. Kieninger and Dengel~\cite{kieninger1998} (T-Recs) recognise
+tables from word bounding boxes without ruling lines. We use the same idea in our geometric
+fallback, which rebuilds columns from whitespace gutters. The ICDAR 2013 table competition~\cite{gobel2013}
+established standard evaluation of table location and structure, showing that cell-structure recovery
+remains error-prone and motivating our per-cell verification status. Smith~\cite{smith2007} describes
+the Tesseract OCR engine (adaptive classifier, line finding and word recognition) used for scanned
+pages and photographs. PyMuPDF~\cite{pymupdf} provides text with coordinates and ruled-table detection
+that preserves merged-cell spans.
+
+\paragraph{Natural-language interfaces to databases.}
+Androutsopoulos, Ritchie and Thanisch~\cite{androutsopoulos1995} review classical natural-language
+interfaces to databases (NLIDB), including pattern-matching, syntax-based and semantic-grammar
+systems. They note that a narrow domain allows simple, reliable pattern-based interpretation. Seq2SQL~\cite{zhong2017}
+and the Spider benchmark~\cite{yu2018} show that neural text-to-SQL can generalise across schemas, but
+exact-match accuracy on complex queries remains well below 100\%, which is unacceptable when a student
+relies on the answer to reach a lab on time. Greshake et~al.~\cite{greshake2023} and Pedro
+et~al.~\cite{pedro2023} demonstrate prompt-injection attacks on LLM-integrated applications, including
+attacks that turn prompts into SQL injection. These findings led us to a closed intent registry with
+parameterised templates instead of generated SQL.
+
+\paragraph{Time intervals and conflicts.}
+Allen's interval algebra~\cite{allen1983} defines the thirteen relations between time intervals. Our
+clash rule uses the \emph{overlaps/during/equals} family, $a.\mathit{start} < b.\mathit{end} \wedge
+b.\mathit{start} < a.\mathit{end}$, with start-inclusive, end-exclusive slots, so consecutive lectures do
+not clash.
+
+\paragraph{Security and architecture.}
+Sandhu et~al.~\cite{sandhu1996} define role-based access control (RBAC), which underlies our five
+roles and their data scopes. JSON Web Tokens are specified in RFC~7519~\cite{rfc7519}. Argon2, the
+winner of the Password Hashing Competition, is a memory-hard function resistant to GPU
+cracking~\cite{biryukov2016}. The OWASP Top~10~\cite{owasp2021} lists broken access control and
+injection among the most critical web risks, and it guided our IDOR and injection controls.
+Fielding's REST dissertation~\cite{fielding2000} motivates the stateless resource-oriented API, and
+Codd's relational model~\cite{codd1970} with normalisation theory~\cite{silberschatz2019} underlies
+the schema. PostgreSQL's \texttt{SELECT \ldots{} FOR UPDATE SKIP LOCKED}~\cite{postgresdocs} lets
+several worker processes take jobs from one table without a separate message broker.
+
+\begin{longtable}{@{}p{0.6cm}p{3.6cm}p{5.4cm}p{5.6cm}@{}}
+\caption{Summary of reviewed literature and resources}\label{tab:litreview}\\
+\toprule
+\textbf{\#} & \textbf{Work} & \textbf{Contribution} & \textbf{Relevance / limitation for our problem}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{\#} & \textbf{Work} & \textbf{Contribution} & \textbf{Relevance / limitation for our problem}\\
+\midrule
+\endhead
+1 & Schaerf, 1999~\cite{schaerf1999} & Survey of school, course and exam timetabling formulations and algorithms & Defines clash constraints; assumes timetable is generated, not read\\
+2 & Burke \& Petrovic, 2002~\cite{burke2002} & Research directions in university timetabling & Highlights gap between research and real institutional data\\
+3 & Lewis, 2008~\cite{lewis2008} & Survey of meta-heuristics for university timetabling; hard vs soft constraints & Hard constraints become our conflict checks\\
+4 & Zanibbi et al., 2004~\cite{zanibbi2004} & Survey of table recognition: detection, structure, interpretation & Interpretation is domain specific, so we built a timetable-specific grid parser\\
+5 & Kieninger \& Dengel, 1998~\cite{kieninger1998} & T-Recs: tables from word boxes without ruling lines & Basis of our geometric (gutter-based) fallback\\
+6 & G\"obel et al., 2013~\cite{gobel2013} & ICDAR 2013 table competition and metrics & Structure recovery is error-prone, so we assign a status to each entry\\
+7 & Smith, 2007~\cite{smith2007} & Architecture of the Tesseract OCR engine & OCR for scans/photos; OCR entries capped at \textsc{Unverified}\\
+8 & Androutsopoulos et al., 1995~\cite{androutsopoulos1995} & Review of NL interfaces to databases & Narrow domain allows reliable rule-based interpretation\\
+9 & Zhong et al., 2017~\cite{zhong2017} & Seq2SQL: neural text-to-SQL with RL & Flexible but not exact; needs training data\\
+10 & Yu et al., 2018~\cite{yu2018} & Spider cross-domain text-to-SQL benchmark & Accuracy on complex queries far below 100\%\\
+11 & Greshake et al., 2023~\cite{greshake2023} & Indirect prompt injection in LLM-integrated apps & Risk of letting an LLM drive data access\\
+12 & Pedro et al., 2023~\cite{pedro2023} & Prompt-to-SQL injection in LLM web apps & Motivates templates instead of generated SQL\\
+13 & Allen, 1983~\cite{allen1983} & Interval algebra for temporal reasoning & Formal basis of the overlap/clash rule\\
+14 & Sandhu et al., 1996~\cite{sandhu1996} & Role-based access control models & Five roles with data scopes\\
+15 & Biryukov et al., 2016~\cite{biryukov2016} & Argon2 memory-hard password hashing & Password storage\\
+16 & Fielding, 2000~\cite{fielding2000} & REST architectural style & Stateless JSON API design\\
+17 & Codd, 1970~\cite{codd1970} & Relational model of data & Normalised relational schema\\
+18 & RFC 7519~\cite{rfc7519}, OWASP Top 10~\cite{owasp2021} & JWT standard; top web security risks & Token format; IDOR and injection controls\\
+19 & FET, UniTime, aSc~\cite{fet,unitime,asc} & Timetable generators & Construct timetables; no reading, search or role views\\
+20 & Tabula, Camelot, PyMuPDF~\cite{tabula,camelot,pymupdf} & PDF table extraction tools & Raw cells only; no timetable semantics\\
+\bottomrule
+\end{longtable}
+
+\subsection{Comparative Analysis}
+Table~\ref{tab:compare} compares the existing approaches on criteria that matter to the users of a
+published college timetable.
+
+\begin{table}[H]
+\centering
+\caption{Comparison of existing approaches with the proposed system}
+\label{tab:compare}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{3.6cm}*{7}{>{\centering\arraybackslash}p{1.6cm}}@{}}
+\toprule
+\textbf{Criterion} & \textbf{Manual PDF} & \textbf{FET / UniTime / aSc} & \textbf{Tabula / Camelot} & \textbf{Calendar apps} & \textbf{ERP module} & \textbf{LLM text-to-SQL} & \textbf{Proposed}\\
+\midrule
+Reads published PDF/photo & -- & No & Partly & No & No & No & \textbf{Yes}\\
+Timetable semantics (labs, legends) & Human & Yes & No & No & Yes & Depends & \textbf{Yes}\\
+Role-based views & No & Limited & No & No & Yes & No & \textbf{Yes (5)}\\
+Plain-English questions & No & No & No & Limited & No & Yes & \textbf{Yes (30 intents)}\\
+Reproducible, injection-safe answers & -- & -- & -- & -- & Yes & No & \textbf{Yes}\\
+Clash detection & No & At creation & No & No & Sometimes & No & \textbf{Yes, after publication}\\
+Version archive & Ad hoc & Files & No & No & Sometimes & No & \textbf{Yes, audited}\\
+Personal timetable kept private & -- & No & No & Yes & No & No & \textbf{Yes}\\
+Cost & Free & Free/Paid & Free & Free & Paid & Paid API & \textbf{Free (open source)}\\
+Mobile use & PDF viewer & Limited & No & Yes & Varies & Varies & \textbf{Android, iOS, web}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Limitations of Existing Systems}
+\begin{enumerate}
+\item Generators (FET, UniTime, aSc) stop at a printable grid; the people who follow the timetable
+      cannot search or personalise it.
+\item Generic table extractors do not understand timetable conventions: stacked labs become one
+      garbled string, legends are not applied, and times stay ambiguous.
+\item Calendars and ERP modules require manual data entry, which is error-prone and is rarely
+      repeated when the timetable is revised.
+\item No existing tool used by our college detects clashes in the \emph{published} timetable.
+\item LLM-based interfaces are not reproducible and introduce injection risks~\cite{pedro2023}.
+\end{enumerate}
+
+\subsection{Identified Engineering Gap}
+There is no free system that takes the timetable \emph{as the college actually publishes it} and
+turns it into trustworthy, role-scoped, searchable data with provenance, clash checks and version
+history, while answering everyday questions in plain English safely. The gap is not a better
+timetable-construction algorithm. It is the missing link between the published document and its
+daily users.
+
+\subsection{Proposed Improvements}
+\begin{itemize}
+\item A timetable-aware extraction pipeline with geometry, OCR and office adapters feeding one grid
+      model, with per-entry provenance and verification status (closes limitations 2 and 3).
+\item Admin review, correction and activation with an audited archive (closes limitation 3).
+\item Interval-based clash detection that understands parallel lab groups and elective options
+      (closes limitation 4).
+\item A closed-registry NL engine (30 intents, 22 templates) with clarification instead of guessing
+      (closes limitation 5).
+\item Role dashboards and a single code base for Android, iOS and the web (closes limitation 1).
+\end{itemize}
+
+\newpage

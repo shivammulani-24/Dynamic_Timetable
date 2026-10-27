@@ -1,0 +1,27 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}\usepackage[T1]{fontenc}\usepackage{tgbonum}
+\usetikzlibrary{positioning,fit,arrows.meta}
+\definecolor{spitblue}{RGB}{0,84,147}\definecolor{boxfill}{RGB}{232,240,252}
+\begin{document}
+\begin{tikzpicture}[font=\large,
+ b/.style={draw=spitblue,very thick,rounded corners=4pt,fill=boxfill,align=center,inner sep=6pt,minimum height=13mm},
+ e/.style={draw,very thick,fill=orange!20,align=center,inner sep=6pt,minimum height=11mm,rounded corners=3pt},
+ a/.style={-{Stealth[length=4mm]},very thick}, d/.style={{Stealth[length=4mm]}-{Stealth[length=4mm]},very thick}]
+\node[e,minimum width=30mm] (s) {Student};
+\node[e,right=4mm of s,minimum width=30mm] (p) {Professor};
+\node[e,right=4mm of p,minimum width=30mm] (h) {HOD /\\Principal};
+\node[e,right=4mm of h,minimum width=30mm] (ad) {Admin};
+\node[draw,dashed,thick,fit=(s)(p)(h)(ad),inner sep=5pt,label={[font=\large\bfseries]above:Android $\cdot$ iPhone $\cdot$ Laptop (React Native / Expo)}] (cl) {};
+\node[b,below=16mm of cl.south west,anchor=north west,minimum width=37mm] (auth) {Auth \& RBAC\\JWT, Argon2id};
+\node[b,right=3mm of auth,minimum width=40mm] (qe) {NL Query Engine\\Q01--Q30 $\rightarrow$ QT01--QT22};
+\node[b,right=3mm of qe,minimum width=40mm] (sv) {Services: archives,\\conflicts, promotion};
+\node[draw,very thick,rounded corners,fit=(auth)(qe)(sv),inner sep=6pt,label={[font=\large\bfseries,anchor=south west]north west:FastAPI server (stateless)}] (api) {};
+\node[b,below=16mm of qe,fill=gray!15,minimum width=40mm] (db) {PostgreSQL 16\\31 tables};
+\node[b,below=16mm of sv,fill=green!12,minimum width=40mm] (wk) {Worker: PDF / OCR /\\Excel / Word extraction};
+\node[b,below=16mm of auth,fill=gray!15,minimum width=37mm] (fs) {Private file\\storage};
+\draw[d] (cl.south) -- node[right,font=\normalsize]{HTTPS + JSON} (cl.south |- api.north);
+\draw[d] (qe.south |- api.south) -- (db);
+\draw[a] (wk) -- node[above,font=\normalsize]{jobs} (db);
+\draw[a] (auth.south |- api.south) -- (fs);
+\end{tikzpicture}
+\end{document}

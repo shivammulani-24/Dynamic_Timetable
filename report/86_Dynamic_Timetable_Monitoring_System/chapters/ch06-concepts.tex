@@ -1,0 +1,149 @@
+\section{Subject-Wise Engineering Concepts and APNI Leap Alignment}
+This chapter shows how concepts from Semesters I--IV were applied in the project. Every claim points
+to code in the repository or to a test, so it can be checked.
+
+\subsection{Software Engineering}
+\begin{itemize}
+\item \textbf{Process model:} incremental. Each phase (requirements $\rightarrow$ back-end foundation
+      $\rightarrow$ extraction $\rightarrow$ query engine $\rightarrow$ app $\rightarrow$ testing
+      $\rightarrow$ deployment) produced a working, tested increment and a commit
+      (Section~7.8)~\cite{sommerville}.
+\item \textbf{Requirement traceability:} every functional requirement (FR-01 \ldots FR-19) maps to
+      modules (Table~\ref{tab:modules}) and test cases (Table~\ref{tab:testcases}). Conflicts between the
+      source specifications were recorded with their resolution (\texttt{docs/01-requirements-and-decisions.md},
+      C-01 \ldots C-10, D-01 \ldots D-20).
+\item \textbf{Modularity and separation of concerns:} routers $\rightarrow$ services $\rightarrow$
+      query/extraction $\rightarrow$ models. Security policy lives in one file
+      (\texttt{security/policy.py}), and domain separation in one adapter (\texttt{services/domains.py}).
+\item \textbf{State management (client):} server state in TanStack Query (cache, invalidation on
+      activation), authentication state in a React context, form state in React Hook Form with Zod schemas.
+\item \textbf{Exception handling:} typed application errors mapped to one JSON error envelope; the
+      worker separates retryable from deterministic failures.
+\item \textbf{Version control:} Git with a feature branch and descriptive commit messages (Section~7.8).
+\item \textbf{Quality:} static typing (Pydantic, TypeScript \texttt{strict}), 159 + 18 automated tests,
+      end-to-end tests, a security audit with prioritised findings (P0--P2).
+\end{itemize}
+
+\subsection{Computer Networks}
+\begin{itemize}
+\item \textbf{Architecture:} client--server over TCP/IP. Many clients (phones and browsers) talk to
+      one logical server over HTTPS (HTTP/1.1 over TLS over TCP, port 443). The database is reached over
+      TCP port 5432 on a private network.
+\item \textbf{Protocol and message format:} REST resources under \texttt{/api/v1}; JSON request and
+      response bodies; \texttt{multipart/form-data} for uploads; standard status codes (200, 401, 403,
+      404, 413, 422, 429). Search answers always use one envelope
+      (\texttt{status}, \texttt{intent}, \texttt{results}, \texttt{warnings}, \texttt{clarification}).
+\item \textbf{Connection management:} stateless requests with bearer tokens; keep-alive handled
+      by the HTTP client; a database connection pool per API process.
+\item \textbf{Error recovery:} client timeouts; automatic retry only for idempotent reads;
+      \emph{single-flight} token refresh, where many requests that receive 401 at the same time share
+      one refresh call (tested in Jest); offline detection with NetInfo and a cached last-known
+      institutional timetable.
+\item \textbf{Real bug found:} the web build checked connectivity with an HTTP \texttt{HEAD /}
+      request, which the server answered with 405, so the app believed it was offline and stayed
+      on ``Loading\ldots''. The server now accepts \texttt{HEAD} for the web routes (Section~9.9).
+\item \textbf{Concurrency:} several Uvicorn worker processes each serve concurrent requests, so many
+      clients are served at once (Section~8.4).
+\end{itemize}
+
+\subsection{Database Management Systems}
+\begin{itemize}
+\item \textbf{ER modelling and normalisation} to 3NF (Section~4.6), with a justified provenance
+      denormalisation (raw labels).
+\item \textbf{Keys and constraints:} UUID and identity PKs; FKs including \emph{composite} FKs
+      that make a user's preference point only to their own personal timetable; CHECK constraints (day
+      1--7, end $>$ start, status enums, single-row settings); \emph{partial unique} indexes (one open
+      academic placement per student; one active academic year; idempotent uploads per client request id).
+\item \textbf{Indexing and query optimisation:} composite B-tree indexes led by
+      \texttt{timetable\_id}; eager loading removed N+1 queries (about 50 $\rightarrow$ about 25
+      statements per search).
+\item \textbf{Transactions and concurrency control:} activation locks the settings row
+      (\texttt{SELECT \ldots{} FOR UPDATE}); promotion locks student rows in a stable order to avoid
+      deadlocks; job claiming uses \texttt{FOR UPDATE SKIP LOCKED}; each request runs in one
+      transaction, so it sees one consistent snapshot.
+\item \textbf{Schema migration:} Alembic versioned migrations (0001 schema, 0002 reference data, 0003
+      time-uncertainty flag).
+\item \textbf{Security:} parameterised queries only, so no SQL is ever built from user text.
+\end{itemize}
+
+\subsection{Operating Systems}
+\begin{itemize}
+\item \textbf{Processes:} the API runs as several OS processes (Uvicorn workers); extraction runs in a
+      separate worker process, so CPU-heavy OCR cannot starve request handling. On the free tier the
+      worker runs as a background \emph{thread} in the same process instead.
+\item \textbf{Producer--consumer:} the API (producer) inserts jobs and workers (consumers) remove them
+      from a shared, persistent FIFO queue: the \texttt{processing\_job} table.
+\item \textbf{Synchronisation:} database row locks act as the mutual-exclusion mechanism.
+      \texttt{SKIP LOCKED} gives non-blocking acquisition, which is like a \emph{try-lock}, so idle
+      workers never wait on a busy row.
+\item \textbf{Deadlock avoidance:} resources (student rows) are always locked in the same order,
+      which breaks the circular-wait condition.
+\item \textbf{Fault tolerance:} heartbeat timestamps detect crashed workers, a job whose heartbeat is
+      older than 10 minutes is re-claimed, and the maximum attempt count prevents infinite retry loops.
+\item \textbf{Scheduling:} jobs are served first-come-first-served (\texttt{ORDER BY created\_at}). The
+      OS scheduler time-slices request handling across processes. Section~8.5 discusses the
+      measurements. We did not need a custom Round-Robin scheduler, because jobs are rare and short (under 2~s).
+\item \textbf{Resource limits:} upload size (15~MB) and page count (30), and a timeout on the
+      LibreOffice conversion subprocess.
+\end{itemize}
+
+\subsection{Data Structures}
+Hash maps for grouping and legend/vocabulary lookup, sets for de-duplication, sorted arrays with a
+sweep for interval overlap, a 2-D grid with spans for the timetable, a parent-pointer tree for the
+batch hierarchy, a FIFO queue for jobs and B-tree indexes in the database (Table~\ref{tab:ds}).
+
+\subsection{Design and Analysis of Algorithms}
+\begin{itemize}
+\item \textbf{Backtracking with pruning} for time-row resolution, with a uniqueness test for
+      certainty (Algorithm~\ref{alg:time}).
+\item \textbf{Divide by key, sort and sweep} for interval-overlap detection, $O(n\log n + m)$
+      instead of $O(n^2)$ (Algorithm~\ref{alg:conflict})~\cite{cormen2009}.
+\item \textbf{Greedy longest-match} n-gram scanning for entity mentions.
+\item \textbf{Interval algebra} for overlap and free-time computation~\cite{allen1983}.
+\item \textbf{Correctness argument (conflicts):} after sorting by start time, if $g_j.\mathit{start}
+      \geq g_i.\mathit{end}$ then every later $g_k$ ($k>j$) also has $g_k.\mathit{start} \geq g_i.\mathit{end}$,
+      so it cannot overlap $g_i$. The early break therefore never misses a conflict.
+\end{itemize}
+
+\subsection{Cloud Computing}
+\begin{itemize}
+\item \textbf{Service model:} Platform-as-a-Service (Render) running our \textbf{Docker} container,
+      plus a managed PostgreSQL database (Database-as-a-Service).
+\item \textbf{Infrastructure as code:} \texttt{render.yaml} blueprint declares the web service, the
+      database and environment variables. A push to the branch triggers build and deploy (continuous deployment).
+\item \textbf{Configuration and secrets:} 12-factor style environment variables; the secret key is
+      generated by the platform and the demo password is entered at deploy time, so nothing secret is
+      in Git.
+\item \textbf{Availability and scaling:} a health-check endpoint; the stateless API scales
+      horizontally; the free tier sleeps after 15 minutes idle (a cost/availability trade-off).
+\end{itemize}
+
+\subsection{Mapping of Subjects to Project Implementation}
+\begin{longtable}{@{}p{2.2cm}p{4cm}p{3.6cm}p{5.1cm}@{}}
+\caption{Mapping of Semester I--IV subjects to the project}\label{tab:mapping}\\
+\toprule
+\textbf{Subject} & \textbf{Concept applied} & \textbf{Project module} & \textbf{Evidence}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Subject} & \textbf{Concept applied} & \textbf{Project module} & \textbf{Evidence}\\
+\midrule
+\endhead
+DBMS & Normalisation, PK/FK, CHECK, partial unique indexes & Schema (\texttt{models.py}, migrations) & ER diagram Fig.~\ref{fig:er}; Table~\ref{tab:schema}\\
+DBMS & Indexing, N+1 elimination & Query templates & 50 $\rightarrow$ 25 statements per search; latency results (Ch.~8)\\
+DBMS & Transactions, row locking & Activation, promotion & Concurrent activation/promotion tests (one wins, no corruption)\\
+Operating Systems & Producer--consumer, mutual exclusion (try-lock) & Worker, job queue & \texttt{SKIP LOCKED} claim; worker retry test\\
+Operating Systems & Processes vs threads, deadlock avoidance & API workers, promotion & Load test with 4 processes; ordered locking\\
+Computer Networks & Client--server, HTTP/REST, JSON, TLS & API, app client & OpenAPI spec (\texttt{docs/openapi.json}); e2e tests\\
+Computer Networks & Error recovery, single-flight refresh & \texttt{api/client.ts} & Jest test with concurrent 401s\\
+Data Structures & Hash maps, sets, trees, queues, grids & Extraction, conflicts, vocabulary & Code; Table~\ref{tab:ds}\\
+Analysis of Algorithms & Backtracking, sort + sweep, complexity & Time parser, conflicts & Alg.~\ref{alg:time}, \ref{alg:conflict}; Table~\ref{tab:timecx}\\
+Software Engineering & SRS, traceability, testing, Git & Whole project & FR table, test-case table, commit history\\
+Discrete Mathematics & Sets, relations, intervals, predicate logic & Clash rule, role scopes & $a.s<b.e \wedge b.s<a.e$; RBAC matrix\\
+Programming (Python, JS) & OOP, typing, async UI & Back end, app & 10.5k lines Python, 5.5k lines TypeScript\\
+Cloud Computing & PaaS, Docker, IaC, CD & Deployment & \texttt{render.yaml}, \texttt{deploy/render.Dockerfile}; live demo\\
+Information Security (applied) & Hashing, tokens, RBAC, OWASP & \texttt{app/security} & Auth tests; P0 fix verified with 9 checks\\
+\bottomrule
+\end{longtable}
+
+\newpage

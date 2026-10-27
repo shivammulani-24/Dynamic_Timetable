@@ -1,0 +1,491 @@
+\section{System Architecture and Design}
+
+\subsection{Overall System Architecture}
+Figure~\ref{fig:arch} shows the block diagram. The system follows a layered client--server
+architecture with one separately scaled background worker.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=4mm and 6mm]
+% clients
+\node[ext,minimum width=3.3cm] (android) {Android app};
+\node[ext,minimum width=3.3cm,right=of android] (ios) {iPhone app};
+\node[ext,minimum width=3.3cm,right=of ios] (web) {Laptop browser\\(web build)};
+\node[draw,dashed,rounded corners,fit=(android)(ios)(web),inner sep=6pt,
+      label={[font=\scriptsize\bfseries]above:React Native / Expo client (one TypeScript code base)}] (cl) {};
+% api
+\node[blk,below=13mm of ios,minimum width=12.6cm,minimum height=9mm] (mw) {Middleware: request id, JSON logs, CORS, error envelope, rate limiting};
+\node[blk,below=3mm of mw.south west,anchor=north west,minimum width=2.9cm,minimum height=13mm] (sec) {Security\\JWT $\cdot$ RBAC\\policy};
+\node[blk,right=2mm of sec,minimum width=2.9cm,minimum height=13mm] (routers) {REST routers\\auth, me, timetables,\\search, admin};
+\node[blk,right=2mm of routers,minimum width=3.2cm,minimum height=13mm] (svc) {Services\\context, uploads,\\conflicts, academics};
+\node[blk,right=2mm of svc,minimum width=3cm,minimum height=13mm] (qe) {Query engine\\NLP $\rightarrow$ Q01--Q30\\$\rightarrow$ QT01--QT22};
+\node[draw,thick,rounded corners,fit=(mw)(sec)(qe),inner sep=5pt,
+      label={[font=\scriptsize\bfseries,anchor=south west]north west:FastAPI application (stateless, N processes)}] (api) {};
+% bottom
+\node[store,below=16mm of routers,minimum width=3.6cm,minimum height=11mm,font=\small] (db) {PostgreSQL 16\\31 tables};
+\node[blk,below=16mm of qe,minimum width=4cm,minimum height=11mm] (worker) {Background worker\\Extraction pipeline\\(PyMuPDF, Tesseract, Office)};
+\node[store,left=10mm of db,minimum width=3cm,minimum height=11mm,font=\small] (files) {Private file\\storage};
+\draw[darr] (cl.south) -- node[lbl,right]{HTTPS, JSON (REST /api/v1)} (mw.north -| cl.south);
+\draw[darr] (api.south -| db.north) -- node[lbl,right]{SQL (bound params)} (db.north);
+\draw[arr] (worker.west) -- node[lbl,above]{claims jobs} node[lbl,below,font=\tiny]{FOR UPDATE SKIP LOCKED} (db.east);
+\draw[arr] (api.south -| files.north) -- node[lbl,left]{originals} (files.north);
+\draw[arr] (files.south) to[bend right=25] node[lbl,below]{read file} (worker.south);
+\end{tikzpicture}
+\caption{Overall system architecture (block diagram)}
+\label{fig:arch}
+\end{figure}
+
+\paragraph{Responsibilities and interactions.}
+The \textbf{client} renders dashboards and forms, caches reads with TanStack Query and keeps the
+session in the device keystore. It calls the \textbf{API} over HTTPS with a bearer token. The API
+authenticates the user, loads roles from the database, resolves the search context (domain,
+timetable, time zone, current time), and runs services and the query engine. Uploads are stored
+privately and a \texttt{PROCESSING\_JOB} row is inserted in the same transaction. The \textbf{worker}
+claims jobs, extracts and validates the timetable, and writes entries back. \textbf{PostgreSQL} is
+the single source of truth, and its row locks are also used for synchronisation.
+
+\subsection{Component and Module Description}
+\begingroup\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{3.5cm}>{\raggedright\arraybackslash}p{3.9cm}@{}}
+\caption{Modules: purpose, inputs, outputs and dependencies}\label{tab:modules}\\
+\toprule
+\textbf{Module (path)} & \textbf{Purpose} & \textbf{Input / output} & \textbf{Depends on}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Module (path)} & \textbf{Purpose} & \textbf{Input / output} & \textbf{Depends on}\\
+\midrule
+\endhead
+Auth \& RBAC \newline{\scriptsize\texttt{app/\allowbreak security}} & Login, tokens, password hashing, role$\rightarrow$scope policy, rate limit & Credentials / tokens; request / principal & \texttt{USER\_ACCOUNT}, \texttt{USER\_ROLE}, Argon2, PyJWT\\
+API routers \newline{\scriptsize\texttt{app/\allowbreak api/\allowbreak v1}} & HTTP endpoints, request/response validation & JSON, multipart / JSON envelopes & Services, Pydantic\\
+Context resolver \newline{\scriptsize\texttt{services/\allowbreak context.py}} & Chooses domain, timetable, time zone, ``now'' on the server & User + hints / context object & Preferences, settings\\
+Upload service \newline{\scriptsize\texttt{services/\allowbreak uploads.py}} & Validates file, stores it, creates archive + job & File / timetable id (\textsc{Queued}) & File types, storage, jobs\\
+Extraction \newline{\scriptsize\texttt{app/\allowbreak extraction}} & File $\rightarrow$ grid $\rightarrow$ sections, times, cells $\rightarrow$ validated entries & Bytes / \texttt{ExtractionResult} & PyMuPDF, Tesseract, openpyxl, python-docx\\
+Worker \newline{\scriptsize\texttt{app/\allowbreak worker.py}} & Claims and runs jobs, heartbeat, retries, status update & Job rows / entries, status, notification & Extraction, DB\\
+Query engine \newline{\scriptsize\texttt{app/\allowbreak query}} & Parse, classify into intent, resolve entities, validate, run template & Text / result envelope & Vocabulary, templates, policy\\
+Conflicts \newline{\scriptsize\texttt{services/\allowbreak conflicts.py}} & Detect professor/room/batch overlaps & Timetable id / conflict list & Entries\\
+Academics \newline{\scriptsize\texttt{services/\allowbreak academics.py}} & Fresher registration, promotion, transitions & Admin commands / history rows & Student history\\
+Admin master data & Departments, years, batches, courses, rooms, aliases, users & Forms / records & DB, audit\\
+Notifications \& audit & In-app/push notifications; audit trail & Events / rows & Expo push (optional)\\
+Mobile app \newline{\scriptsize\texttt{mobile/\allowbreak src}} & Screens, navigation, state, API client & User actions / rendered UI & REST API\\
+\bottomrule
+\end{longtable}
+\endgroup
+
+\subsection{Architecture Selection and Justification}
+We compared three options.
+\begin{enumerate}
+\item \textbf{Microservices} (separate auth, extraction and search services with a message broker):
+      independent scaling, but much more deployment and debugging effort for a single-college workload and
+      a team of students, and not possible on a free hosting tier.
+\item \textbf{Serverless functions}: no server to manage, but cold starts, execution-time limits
+      that do not suit OCR, and vendor lock-in.
+\item \textbf{Modular monolith + worker} (chosen): one Python service with clearly separated
+      layers (API $\rightarrow$ services $\rightarrow$ query/extraction $\rightarrow$ data). The only
+      CPU-heavy part, extraction, runs in a separate worker process so it never blocks API requests.
+      A PostgreSQL job table replaces a message broker, so job creation is in the \emph{same
+      transaction} as the upload record and there is one less moving part.
+\end{enumerate}
+The API is \textbf{stateless} (REST~\cite{fielding2000}): any process can serve any request, so the
+system scales horizontally by adding processes. A \textbf{layered} design keeps the rules
+(security, domain separation) in one place each, which makes them testable.
+
+\subsection{Data Flow Diagrams}
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max width=\textwidth}
+\begin{tikzpicture}
+\node[proc,minimum size=34mm,font=\small] (sys) {0.0\\Dynamic\\Timetable\\System};
+\node[ext,above left=8mm and 26mm of sys] (stu) {Student};
+\node[ext,above right=8mm and 26mm of sys] (prof) {Professor};
+\node[ext,below left=8mm and 26mm of sys] (adm) {Admin};
+\node[ext,below right=8mm and 26mm of sys] (hod) {HOD /\\Principal};
+\draw[arr] (stu.east) to[bend left=10] node[lbl,above,sloped]{questions, personal file} (sys.north west);
+\draw[arr] (sys.west) to[bend left=10] node[lbl,below,sloped]{schedule, answers} (stu.south);
+\draw[arr] (prof.west) to[bend right=10] node[lbl,above,sloped]{questions} (sys.north east);
+\draw[arr] (sys.east) to[bend right=10] node[lbl,below,sloped]{schedule, free rooms} (prof.south);
+\draw[arr] (adm.east) to[bend right=10] node[lbl,below,sloped]{timetable file, corrections} (sys.south west);
+\draw[arr] (sys.west) to[bend right=30] node[lbl,above,sloped]{validation summary} (adm.north);
+\draw[arr] (sys.south east) to[bend left=10] node[lbl,below,sloped]{conflicts, room usage} (hod.west);
+\end{tikzpicture}
+\end{adjustbox}
+\caption{DFD level 0 (context diagram)}
+\label{fig:dfd0}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max width=\textwidth}
+\begin{tikzpicture}
+\node[ext] (adm) at (0,0) {Admin};
+\node[proc] (p1) at (3.4,0) {1.0\\Receive \&\\archive};
+\node[proc] (p2) at (6.9,0) {2.0\\Extract \&\\validate};
+\node[proc] (p3) at (10.6,0) {3.0\\Review \&\\activate};
+\node[store] (d1) at (5.15,2.3) {D1 Uploaded files};
+\node[store] (d3) at (0,-3.4) {D3 Users, roles,\\preferences};
+\node[proc] (p4) at (3.4,-3.4) {4.0\\Resolve\\context};
+\node[proc] (p5) at (6.9,-3.4) {5.0\\Answer query\\(intent +\\template)};
+\node[store] (d2) at (10.6,-3.4) {D2 Timetables\\\& entries};
+\node[proc] (p6) at (10.6,-6.6) {6.0\\Detect\\conflicts};
+\node[ext] (hod) at (14.4,-6.6) {HOD /\\Principal};
+\node[ext] (usr) at (6.9,-6.9) {Student /\\Professor};
+\draw[arr] (adm) -- node[lbl,above]{file} (p1);
+\draw[arr] (p1) -- node[lbl,above]{job} (p2);
+\draw[arr] (p1) |- node[lbl,pos=0.75,above]{original} (d1.west);
+\draw[arr] (d1.east) -| (p2);
+\draw[arr] (p2) -- node[lbl,above]{entries} (p3);
+\draw[arr] (adm.north) -- ++(0,3.4) -| node[lbl,pos=0.25,above]{corrections, activation} (p3.north);
+\draw[arr] (p3) -- node[lbl,right]{verified data} (d2);
+\draw[arr] (d3) -- (p4);
+\draw[arr] (p4) -- node[lbl,above]{context} (p5);
+\draw[arr] (d2) -- node[lbl,above]{entries} (p5);
+\draw[arr] (d2) -- node[lbl,right]{entries} (p6);
+\draw[arr] (p6) -- node[lbl,above]{clashes} (hod);
+\draw[arr] ([xshift=-5mm]usr.north) -- node[lbl,left]{question} ([xshift=-5mm]p5.south);
+\draw[arr] ([xshift=5mm]p5.south) -- node[lbl,right]{answer} ([xshift=5mm]usr.north);
+\end{tikzpicture}
+\end{adjustbox}
+\caption{DFD level 1}
+\label{fig:dfd1}
+\end{figure}
+The level-0 DFD shows the system with its four external entities. The level-1 DFD splits it into the
+upload path (1.0--3.0, used by the Admin) and the query path (4.0--6.0, used by everyone). Both
+share the timetable store D2. Personal timetables follow the same path but are written to separate
+personal tables (not drawn).
+
+\subsection{UML Diagrams}
+\subsubsection{Use case diagram}
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max width=\textwidth}
+\begin{tikzpicture}[uc/.style={draw,ellipse,thick,fill=boxfill,font=\scriptsize,align=center,minimum width=33mm,minimum height=7mm,inner sep=1pt},
+  actor/.style={font=\small,align=center}]
+\node[draw,thick,rounded corners,minimum width=8.6cm,minimum height=12.3cm,label={[font=\small\bfseries]above:Dynamic Timetable}] (b) at (0,0) {};
+\foreach \n/\t/\y in {u1/Sign in/5.4, u2/View dashboard \& week/4.5, u3/Ask question (NL search)/3.6, u4/Find free rooms/2.7,
+  u5/Manage personal timetable/1.8, u6/View own teaching \& free time/0.9, u7/Review conflicts/0, u8/View floor activity/-0.9,
+  u9/Upload official timetable/-1.8, u10/Review \& correct entries/-2.7, u11/Activate timetable/-3.6, u12/Manage master data \& users/-4.5, u13/Promote students/-5.4}
+  { \node[uc] (\n) at (0,\y) {\t}; }
+\node[actor] (s) at (-6.2,4) {\stick\\\textbf{Student}};
+\node[actor] (p) at (-6.2,0.3) {\stick\\\textbf{Professor}};
+\node[actor] (h) at (6.2,0.6) {\stick\\\textbf{HOD /}\\\textbf{Principal}};
+\node[actor] (a) at (6.2,-3.6) {\stick\\\textbf{Admin}};
+\foreach \u in {u1,u2,u3,u4,u5} \draw (s.east) -- (\u.west);
+\foreach \u in {u1,u2,u3,u4,u6} \draw (p.east) -- (\u.west);
+\foreach \u in {u1,u2,u7,u8} \draw (h.west) -- (\u.east);
+\foreach \u in {u1,u9,u10,u11,u12,u13} \draw (a.west) -- (\u.east);
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Use case diagram}
+\label{fig:usecase}
+\end{figure}
+Professors inherit the student-facing use cases. The HOD and Principal are professors with wider scopes,
+which is why the system uses many-to-many \texttt{USER\_ROLE} rather than one role per user.
+
+\subsubsection{Class diagram}
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[cls/.style={draw,thick,rectangle split,rectangle split parts=3,fill=boxfill,
+  font=\scriptsize,align=left,text width=40mm,rectangle split part fill={spitblue!25,boxfill,white}}]
+\node[cls] (ua) at (0,0) {\textbf{UserAccount}
+\nodepart{second}user\_id: UUID\\college\_email: str\\password\_hash: str\\account\_status\\token\_version: int
+\nodepart{third}+roles(): set[Role]};
+\node[cls] (st) at (-5,-4.2) {\textbf{Student}
+\nodepart{second}uid: str\\student\_status
+\nodepart{third}+current\_placement()};
+\node[cls] (sf) at (0,-4.2) {\textbf{Staff}
+\nodepart{second}short\_code: str\\designation
+\nodepart{third}};
+\node[cls] (it) at (5.4,0) {\textbf{InstitutionalTimetable}
+\nodepart{second}timetable\_id: UUID\\processing\_status\\parser\_version\\effective\_from: date\\data\_version: int
+\nodepart{third}+activate()\\+conflicts(): list};
+\node[cls] (ie) at (5.4,-4.6) {\textbf{InstitutionalEntry}
+\nodepart{second}day\_of\_week, start/end\\course/staff/room/batch\\raw\_extracted\_text\\source\_page\\verification\_status
+\nodepart{third}+correct(change)};
+\node[cls] (job) at (10.6,0) {\textbf{ProcessingJob}
+\nodepart{second}status, attempts\\heartbeat\_at
+\nodepart{third}+claim()\\+fail(code)};
+\node[cls] (qe) at (-5,0) {\textbf{QueryEngine}
+\nodepart{second}registry: Q01..Q30\\templates: QT01..QT22
+\nodepart{third}+search(ctx, text)\\-classify(), -resolve()};
+\node[cls] (b) at (10.6,-4.6) {\textbf{Batch}
+\nodepart{second}code (SE-A1)\\parent\_batch\_id
+\nodepart{third}+ancestors()};
+\draw[thick] (ua.south) -- node[lbl,pos=.85,right]{0..1} (sf.north);
+\draw[thick] (ua.south west) -- node[lbl,pos=.85,left]{0..1} (st.north);
+\draw[thick,-{Diamond[open,length=3mm]}] (ie.north) -- node[lbl,pos=0.2,right]{1..*} (it.south);
+\draw[thick] (job.west) -- node[lbl,above]{1} (it.east);
+\draw[thick,dashed,-{Stealth}] (qe.east) -- node[lbl,above]{reads} (ua.west);
+\draw[thick] (ie.east) -- node[lbl,above]{*\quad 0..1} (b.west);
+\draw[thick] (sf.east) -- node[lbl,above]{0..1\quad *} (ie.west);
+\draw[thick] (b.north) .. controls +(0.8,1) and +(1.6,0.2) .. node[lbl,right]{parent} (b.east);
+\end{tikzpicture}}
+\caption{Simplified class diagram of the core domain}
+\label{fig:class}
+\end{figure}
+
+\subsubsection{Sequence diagram: answering a question}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  ll/.style={draw,thick,fill=boxfill,font=\scriptsize,minimum width=19mm,minimum height=6mm},
+  msg/.style={-{Stealth},thick,font=\scriptsize},
+  ret/.style={-{Stealth},dashed,font=\scriptsize}]
+\foreach \x/\n/\t in {0/c/App, 2.6/a/API router, 5.2/s/Security, 7.8/x/Context, 10.4/q/Query engine, 13.0/d/PostgreSQL}{
+  \node[ll] (\n) at (\x,0) {\t};
+  \draw[dashed,gray] (\x,-0.3) -- (\x,-9.3);}
+\draw[msg] (0,-0.9) -- node[above]{POST /search \{query\}} (2.6,-0.9);
+\draw[msg] (2.6,-1.6) -- node[above]{verify JWT} (5.2,-1.6);
+\draw[msg] (5.2,-2.2) -- node[above]{load user+roles} (13,-2.2);
+\draw[ret] (13,-2.7) -- node[above]{principal} (5.2,-2.7);
+\draw[msg] (2.6,-3.4) -- node[above]{resolve(domain, timetable, tz)} (7.8,-3.4);
+\draw[msg] (7.8,-4.0) -- node[above]{preferences, settings} (13,-4.0);
+\draw[ret] (7.8,-4.6) -- node[above]{context} (2.6,-4.6);
+\draw[msg] (2.6,-5.3) -- node[above]{search(ctx, text)} (10.4,-5.3);
+\draw[thick] (10.4,-5.6) -- ++(0.6,0) -- node[right,font=\scriptsize,align=left]{parse, classify,\\resolve entities,\\validate params} ++(0,-0.9) -- ++(-0.6,0);
+\draw[msg] (10.4,-7.0) -- node[above]{template QTnn (bound params)} (13,-7.0);
+\draw[ret] (13,-7.6) -- node[above]{rows} (10.4,-7.6);
+\draw[ret] (10.4,-8.2) -- node[above]{envelope: status, results, warnings} (2.6,-8.2);
+\draw[ret] (2.6,-8.9) -- node[above]{200 / 422 clarification} (0,-8.9);
+\end{tikzpicture}
+\caption{Sequence diagram for a natural-language search}
+\label{fig:seq}
+\end{figure}
+Identity, roles and the selected timetable are always resolved on the server, so the client cannot
+claim another role or timetable. If a parameter is missing (for example a.m./p.m.), the engine
+returns \texttt{CLARIFICATION\_REQUIRED} with choices instead of running a template.
+
+\subsubsection{Activity diagram: publishing a new timetable}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=5mm]
+\node[fill=black,circle,minimum size=3mm] (s) {};
+\node[blk,below=of s] (a1) {Admin uploads file};
+\node[dec,below=of a1] (d1) {type, size,\\signature OK?};
+\node[blk,right=14mm of d1,fill=red!10] (rej) {Reject\\(nothing stored)};
+\node[blk,below=of d1] (a2) {Store privately, archive row, queue job};
+\node[blk,below=of a2] (a3) {Worker: extract, parse, validate};
+\node[dec,below=of a3] (d2) {usable?};
+\node[blk,right=14mm of d2,fill=red!10] (un) {\textsc{Unusable} /\\\textsc{Failed}};
+\node[blk,below=of d2] (a4) {\textsc{Needs Review} or \textsc{Ready}};
+\node[blk,below=of a4] (a5) {Admin reviews \& corrects (audited)};
+\node[dec,below=of a5] (d3) {activate?};
+\node[blk,below=of d3] (a6) {Lock settings, set primary, version+1, notify users};
+\node[draw,circle,minimum size=4mm,below=of a6,path picture={\fill (path picture bounding box.center) circle (1.2mm);}] (e) {};
+\node[blk,left=14mm of d3] (keep) {Stays in archive};
+\draw[arr] (s) -- (a1); \draw[arr] (a1) -- (d1); \draw[arr] (d1) -- node[lbl,above]{no} (rej);
+\draw[arr] (d1) -- node[lbl,right]{yes} (a2); \draw[arr] (a2) -- (a3); \draw[arr] (a3) -- (d2);
+\draw[arr] (d2) -- node[lbl,above]{no} (un); \draw[arr] (d2) -- node[lbl,right]{yes} (a4);
+\draw[arr] (a4) -- (a5); \draw[arr] (a5) -- (d3); \draw[arr] (d3) -- node[lbl,right]{yes} (a6); \draw[arr] (a6) -- (e);
+\draw[arr] (d3) -- node[lbl,above]{no} (keep);
+\end{tikzpicture}
+\caption{Activity diagram: upload, review and activation}
+\label{fig:activity}
+\end{figure}
+
+\subsubsection{State machine diagram: timetable processing status}
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max width=\textwidth}
+\begin{tikzpicture}[st/.style={draw=spitblue,thick,rounded corners=6pt,fill=boxfill,font=\small,minimum width=26mm,minimum height=8mm}]
+\node[fill=black,circle,minimum size=3mm] (i) at (-2.4,0) {};
+\node[st] (q) at (0,0) {\textsc{Queued}};
+\node[st] (p) at (4.2,0) {\textsc{Processing}};
+\node[st] (r) at (11,2.4) {\textsc{Ready}};
+\node[st] (n) at (11,0) {\textsc{Needs Review}};
+\node[st] (u) at (11,-2.4) {\textsc{Unusable}};
+\node[st] (f) at (4.2,-2.8) {\textsc{Failed}};
+\draw[arr] (i) -- node[lbl,above]{upload} (q);
+\draw[arr] (q) -- node[lbl,above]{worker claims} (p);
+\draw[arr] (p.north east) -- node[lbl,above,sloped,pos=0.55]{all entries verified} (r.west);
+\draw[arr] (p) -- node[lbl,above,pos=0.55]{warnings / unverified entries} (n);
+\draw[arr] (p.south east) -- node[lbl,below,sloped,pos=0.55]{no usable entries / $<$25\% usable} (u.west);
+\draw[arr] (p) -- node[lbl,right]{error after 3 attempts} (f);
+\draw[arr] (p.north west) .. controls +(-0.3,1.4) and +(0.3,1.4) .. node[lbl,above]{retry (crash / stale heartbeat)} (p.north);
+\draw[arr] (n.east) to[bend right=50] node[lbl,right]{review all} (r.east);
+\draw[arr] (f.west) -| node[lbl,pos=0.25,below]{reprocess} (q.south);
+\end{tikzpicture}
+\end{adjustbox}
+\caption{State machine of a timetable archive (\textsc{Ready} and \textsc{Needs Review} may be activated)}
+\label{fig:state}
+\end{figure}
+
+\subsubsection{Deployment diagram}
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max width=\textwidth}
+\begin{tikzpicture}[node/.style={draw,thick,fill=gray!8,align=center,font=\small,minimum height=10mm,inner sep=5pt}]
+\node[node] (ph) at (0,0) {\textless\textless device\textgreater\textgreater\\Phone (Android / iOS)\\browser or Expo app};
+\node[node] (lp) at (0,-2.6) {\textless\textless device\textgreater\textgreater\\Laptop browser};
+\node[node,fill=white,font=\scriptsize] (tls) at (5.3,-1.3) {HTTPS / TLS\\termination};
+\node[node,fill=boxfill] (svc) at (9.2,0) {\textless\textless container\textgreater\textgreater\\Docker image: FastAPI\\+ worker thread\\+ static web app};
+\node[node,fill=boxfill] (pg) at (9.2,-2.7) {\textless\textless database\textgreater\textgreater\\Managed PostgreSQL 16};
+\node[draw,thick,fit=(tls)(svc)(pg),inner sep=8pt,label={[font=\small\bfseries]above:Render cloud (free tier)}] (cloud) {};
+\node[node,font=\scriptsize] (gh) at (14.3,-1.3) {GitHub repo\\(push to branch\\$\Rightarrow$ auto deploy)};
+\draw[darr] (ph.east) -- node[lbl,above,sloped]{HTTPS} (tls.west);
+\draw[darr] (lp.east) -- node[lbl,below,sloped]{HTTPS} (tls.west);
+\draw[darr] (tls.east) -- (svc.west);
+\draw[darr] (svc) -- node[lbl,right]{private network, TCP 5432} (pg);
+\draw[arr] (gh.west) -- (cloud.east);
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Deployment diagram of the free online demo}
+\label{fig:deploy}
+\end{figure}
+For the demo, the worker runs as a thread inside the web container, because the free tier allows one
+service. In production the API and the worker run as separate processes or containers
+(\texttt{docker-compose.yml}).
+
+\subsection{Database Design}
+\subsubsection{ER diagram}
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max width=\textwidth}
+\begin{tikzpicture}[ent/.style={draw=spitblue,thick,fill=boxfill,font=\scriptsize\bfseries,minimum width=27mm,minimum height=7mm,align=center},
+  rel/.style={draw,thick,diamond,aspect=2,fill=yellow!15,font=\tiny,inner sep=1pt,align=center}]
+\node[ent] (ua) at (0,0) {USER\_ACCOUNT};
+\node[ent,minimum width=16mm] (role) at (-6.2,0) {ROLE};
+\node[rel] (has) at (-3.4,0) {USER\_ROLE};
+\node[ent] (stu) at (-2.5,-2.2) {STUDENT};
+\node[ent] (stf) at (2.5,-2.2) {STAFF};
+\node[ent] (sah) at (-2.5,-4.4) {STUDENT\_ACADEMIC\\\_HISTORY};
+\node[ent] (batch) at (-2.5,-6.8) {BATCH};
+\node[ent] (dept) at (-6.6,-5.6) {DEPARTMENT};
+\node[ent] (ay) at (-6.6,-3.4) {ACADEMIC\_YEAR};
+\node[ent] (itt) at (5.2,-4.4) {INSTITUTIONAL\\\_TIMETABLE};
+\node[ent] (ite) at (2.5,-6.8) {INSTITUTIONAL\\\_TIMETABLE\_ENTRY};
+\node[ent] (room) at (2.5,-9) {ROOM};
+\node[ent] (course) at (-2.5,-9) {COURSE};
+\node[ent] (set) at (8.6,-4.4) {SETTINGS\\(single row)};
+\node[ent] (ptt) at (5.2,0) {PERSONAL\\\_TIMETABLE};
+\node[ent] (pte) at (8.6,0) {PERSONAL\\\_ENTRY};
+\node[ent] (job) at (8.6,-6.8) {PROCESSING\\\_JOB};
+\node[ent] (cor) at (6,-9) {ENTRY\\\_CORRECTION};
+\draw (role) -- node[lbl,above]{M} (has) -- node[lbl,above]{N} (ua);
+\draw (ua) -- node[lbl,left]{1 : 0..1} (stu);
+\draw (ua) -- node[lbl,right]{1 : 0..1} (stf);
+\draw (stu) -- node[lbl,left]{1 : N} (sah);
+\draw (sah) -- node[lbl,left]{N : 1} (batch);
+\draw (sah) -- node[lbl,above,sloped]{N : 1} (ay);
+\draw (batch) -- node[lbl,above,sloped]{N : 1} (dept);
+\draw (batch) .. controls +(-1.6,-0.9) and +(-1.6,0.9) .. node[lbl,left]{parent} (batch);
+\draw (itt) -- node[lbl,above,sloped]{1 : N} (ite);
+\draw (ite) -- node[lbl,above]{N : 1} (batch);
+\draw (ite) -- node[lbl,right]{N : 1} (room);
+\draw (ite) -- node[lbl,above,sloped]{N : 1} (course);
+\draw (ite) -- node[lbl,right]{N : 1} (stf);
+\draw (set) -- node[lbl,above]{0..1} (itt);
+\draw (ua) -- node[lbl,above]{1 : N owns} (ptt);
+\draw (ptt) -- node[lbl,above]{1 : N} (pte);
+\draw (job) -- node[lbl,above,sloped]{N : 1} (itt);
+\draw (cor) -- node[lbl,above,sloped]{N : 1} (ite);
+\end{tikzpicture}
+\end{adjustbox}
+\caption{ER diagram (main entities; personal sections, notifications, tokens and audit omitted)}
+\label{fig:er}
+\end{figure}
+
+\subsubsection{Relational schema, keys and constraints}
+The database has 31 tables, created by three Alembic migrations. Table~\ref{tab:schema} lists the most
+important tables. Primary keys are UUIDs for user-facing objects (non-guessable, which prevents ID
+enumeration) and \texttt{BIGINT} identities for master data.
+
+\begingroup\footnotesize
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.0cm}>{\raggedright\arraybackslash}p{5.6cm}>{\raggedright\arraybackslash}p{5.6cm}@{}}
+\caption{Relational schema of the main tables}\label{tab:schema}\\
+\toprule
+\textbf{Table (PK)} & \textbf{Main attributes} & \textbf{FKs and constraints}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Table (PK)} & \textbf{Main attributes} & \textbf{FKs and constraints}\\
+\midrule
+\endhead
+\texttt{user\_\allowbreak{}account}\newline(user\_id) & college\_email, display\_name, password\_hash, account\_status, token\_version & UNIQUE(college\_email)\\
+\texttt{user\_\allowbreak{}role}\newline(user\_id, role\_id) & -- & FK user, FK role (M:N bridge)\\
+\texttt{student}\newline(student\_id) & uid, student\_status & FK user (UNIQUE), UNIQUE(uid)\\
+\texttt{staff}\newline(staff\_id) & short\_code, designation & FK user (UNIQUE), FK department\\
+\texttt{student\_\allowbreak{}academic\_\allowbreak{}history}\newline(history\_id) & year\_of\_study, semester, status, effective\_from/to & FK student, academic\_year, department, batch; \textbf{partial UNIQUE(student\_id) WHERE effective\_to IS NULL}\\
+\texttt{batch}\newline(batch\_id) & code (SE-A1), cohort, division, program\_year & FK department, self-FK parent\_batch\_id; UNIQUE(dept, code)\\
+\texttt{institutional\_\allowbreak{}timetable}\newline(timetable\_id) & title, file\_sha256, file\_format, processing\_status, parser\_version, effective\_from, data\_version & FK academic\_year, department, uploader; partial UNIQUE(uploader, client\_request\_id)\\
+\texttt{institutional\_\allowbreak{}timetable\_\allowbreak{}entry}\newline(entry\_id) & entry\_kind, day\_of\_week, class\_date, start\_time, end\_time, raw labels, raw\_extracted\_text, source\_page, confidence\_score, verification\_status, time\_uncertain & FK timetable, section, course, batch, staff, room; CHECK day 1--7; CHECK end$>$start; CHECK status $\in$ \{VERIFIED, UNVERIFIED, INCOMPLETE, REJECTED\}; CHECK 0$\le$confidence$\le$1\\
+\texttt{institutional\_\allowbreak{}timetable\_\allowbreak{}settings}\newline(settings\_id) & default\_timetable\_id, version, updated\_by & \textbf{CHECK settings\_id = 1} (single row)\\
+\texttt{personal\_\allowbreak{}timetable}\newline(timetable\_id) & owner\_user\_id, status, \ldots & UNIQUE(timetable\_id, owner\_user\_id) for composite FKs\\
+\texttt{user\_\allowbreak{}preference}\newline(user\_id) & selection\_mode, personal\_primary\_timetable\_id, last\_active\_domain, last institutional/personal timetable & \textbf{composite FKs (timetable\_id, owner\_user\_id)}: a user can only point to their own personal timetable\\
+\texttt{processing\_\allowbreak{}job}\newline(job\_id) & domain, status, attempts, heartbeat\_at & CHECK exactly one target matching the domain\\
+\texttt{entry\_\allowbreak{}correction}\newline(correction\_id) & domain, before/after JSON, reason, corrected\_by, corrected\_at & FK entry\\
+\texttt{audit\_\allowbreak{}event}\newline(event\_id) & actor, event\_type, target\_type/id, request\_id, occurred\_at & append-only\\
+\bottomrule
+\end{longtable}
+\endgroup
+
+\paragraph{Normalisation.}
+The schema is in third normal form: course, staff, room and batch details are stored once and
+referenced by FK; many-to-many relations (users--roles) use bridge tables; academic placement is a
+separate history table instead of repeating groups in \texttt{student}. One deliberate
+\emph{denormalisation} is that each entry also keeps the raw labels exactly as printed (e.g.\
+\texttt{KKD}, \texttt{606-4}). This is provenance data rather than derived data: it is needed for
+review and stays correct when master data changes.
+
+\paragraph{Indexing strategy.}
+Every query template filters by the selected timetable first, so composite B-tree indexes start with
+\texttt{timetable\_id}:
+\texttt{(timetable\_id, day\_of\_week, start\_time)} for day views, ``now'' and ``next''; \texttt{(timetable\_id,
+class\_date, start\_time)} for dated entries; and \texttt{(timetable\_id, staff\_id)}, \texttt{(…, room\_id)},
+\texttt{(…, batch\_id)} and \texttt{(…, course\_id)} for professor, room, batch and course searches.
+Partial unique indexes enforce business rules (one open placement per student, one active
+academic year, idempotent uploads). Status indexes support the worker's job claim.
+
+\paragraph{Sample records.}
+Table~\ref{tab:sample} shows real rows extracted from page 1 of the college PDF (SE Division A, Monday).
+
+\begin{table}[H]
+\centering
+\caption{Sample entries extracted from the real timetable (page 1, Monday)}
+\label{tab:sample}
+\small
+\begin{tabular}{@{}cccllllc@{}}
+\toprule
+\textbf{Day} & \textbf{Start} & \textbf{End} & \textbf{Course} & \textbf{Staff} & \textbf{Room} & \textbf{Batch} & \textbf{Status}\\
+\midrule
+1 & 09:00 & 10:00 & LLC & -- & -- & SE-A & VERIFIED\\
+1 & 10:00 & 11:00 & DBMS & KKD & 508 & SE-A & VERIFIED\\
+1 & 11:15 & 12:15 & DSGT & AAG & 508 & SE-A & VERIFIED\\
+1 & 12:15 & 13:15 & DS & AVN & 508 & SE-A & VERIFIED\\
+1 & 14:15 & 16:15 & COA Lab & JS & 606-4 & SE-A1 & VERIFIED\\
+1 & 14:15 & 16:15 & COA Lab & AVS & 607-B & SE-A2 & VERIFIED\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Security and Error Handling Design}
+\begin{table}[H]
+\centering
+\caption{Threats and controls}
+\label{tab:security}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}X@{}}
+\toprule
+\textbf{Threat} & \textbf{Control in the design}\\
+\midrule
+Password theft & Argon2id hashing~\cite{biryukov2016}; generic login error; per-IP and per-e-mail rate limit\\
+Stolen refresh token & Rotation on every refresh; reuse of an old token revokes the whole token family\\
+Role escalation & Roles read from \texttt{USER\_ROLE} on every request; role change bumps \texttt{token\_version}\\
+IDOR on personal data & Owner check in the query itself; non-owners get 404 (no existence leak) and an \texttt{ACCESS\_DENIED} audit row\\
+SQL / prompt injection & No SQL built from text; closed intent registry; typed, bound parameters; unknown parameters rejected\\
+Malicious upload & Extension allow-list \emph{and} magic-byte signature check; size/page limits; private storage; parsing isolated in the worker; LibreOffice with isolated profile and timeout\\
+Account takeover via reset & Reset codes never returned in API responses or logs in production (bug P0-1 found and fixed in our audit)\\
+Information leakage & Uniform error envelope with request id; no stack traces or SQL in responses; no tokens or free text in logs\\
+Secrets in the app & Only the public API URL is in the bundle; tokens in iOS Keychain / Android Keystore (SecureStore)\\
+\bottomrule
+\end{tabularx}
+\end{table}
+\paragraph{Error handling.}
+Every error returns the same JSON envelope (\texttt{code}, \texttt{message}, \texttt{request\_id}).
+Validation errors return 422 with field details. Query results use application statuses
+(\texttt{OK}, \texttt{NO\_MATCH}, \texttt{CLARIFICATION\_REQUIRED}, \texttt{UNSUPPORTED\_INTENT},
+\texttt{DATA\_UNVERIFIED}), so the app can show a helpful message instead of a generic failure. The
+worker separates deterministic failures (unreadable file: no retry) from unexpected ones (retried up
+to three times). Structured JSON logs carry the request id for tracing.
+
+\newpage

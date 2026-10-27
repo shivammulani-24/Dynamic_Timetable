@@ -1,0 +1,318 @@
+\section{Algorithm Design and Data Structures}
+
+\subsection{Identification of Critical Operations}
+\begin{table}[H]
+\centering
+\caption{Critical operations of the system}
+\label{tab:critops}
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.8cm}p{4.2cm}Xp{2.2cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Operation} & \textbf{Why it is critical} & \textbf{Frequency}\\
+\midrule
+C1 & Time-row resolution & Wrong a.m./p.m.\ makes every class in the row wrong & Per upload\\
+C2 & Cell parsing (stacked labs, rooms, legends) & Determines subject, teacher, room and lab group of every entry & Per upload\\
+C3 & Conflict detection & Must find genuine clashes and ignore intended overlaps & Per upload / on demand\\
+C4 & Intent classification & Every question must map to exactly one approved intent & Every search\\
+C5 & Entity resolution & ``Desai'', ``DBMS'', ``508'' must resolve only within the selected timetable & Every search\\
+C6 & Next class / free time / free rooms & Most frequent dashboard operations; must be fast and correct & Every app open\\
+C7 & Job claiming & Several workers must never process the same upload twice & Per upload\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Algorithm Design}
+\subsubsection{C1: Time-row resolution by constrained backtracking}
+Time labels in the real PDF are inconsistent. For example, ``12.15 a.m.\ to 01.15 p.m.'' appears where
+noon is meant, and many labels have no a.m./p.m.\ at all. Each label is turned into a small set of
+candidate intervals, and the algorithm searches for assignments in which every row is a plausible
+interval (between 7:00 and 21:00, at most 6 hours long) and no row starts before the previous row
+ends. A reading is accepted as certain only if it is the \emph{same in every valid assignment}.
+Otherwise the row is marked uncertain and sent to review. This follows the project rule that the
+system never guesses silently.
+
+\begin{algorithm}[H]
+\caption{Resolve a column of time labels}\label{alg:time}
+\begin{algorithmic}[1]
+\Require labels $L_1..L_r$ (top to bottom); each $L_i$ gives start/end hour, minute and optional marker
+\Ensure for each row: (start, end, certain?) or a review flag
+\For{$i \gets 1$ \textbf{to} $r$}
+  \State $O_i \gets \{(s,e) : s \in \textsc{Cand}(L_i.\mathit{start}), e \in \textsc{Cand}(L_i.\mathit{end}), \textsc{Plausible}(s,e)\}$ \Comment{literal markers honoured}
+  \If{$O_i = \emptyset$} $O_i \gets$ readings ignoring markers, flagged \textit{non-literal} \EndIf
+\EndFor
+\State $S \gets \emptyset$
+\Procedure{Walk}{$i, \mathit{prevEnd}, A$}
+  \If{$|S| > 64$} \Return \EndIf \Comment{bound the search}
+  \If{$i > r$} $S \gets S \cup \{A\}$; \Return \EndIf
+  \ForAll{$(s,e) \in O_i$ \textbf{with} $s \geq \mathit{prevEnd}$}
+     \State \Call{Walk}{$i+1, e, A \cdot (s,e)$}
+  \EndFor
+\EndProcedure
+\State \Call{Walk}{$1, 0, \langle\rangle$}
+\For{$i \gets 1$ \textbf{to} $r$}
+  \State $R_i \gets \{A_i : A \in S\}$
+  \If{$|R_i| = 1$ \textbf{and} reading is literal} mark row $i$ \textsc{certain}
+  \ElsIf{$|R_i| = 1$} keep reading, set \texttt{time\_uncertain}, add \texttt{TIME\_LABEL\_INCONSISTENT}
+  \Else{} leave time empty, add \texttt{TIME\_AMBIGUOUS\_AMPM} (entries become \textsc{Incomplete})
+  \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+A special rule handles the college's ``12.15 a.m.\ to 01.15 p.m.'' row. It is read as midday only
+when the row before it ends exactly at 12:15 and the row after it starts exactly at 1:15. It is
+therefore proven by its neighbours, not assumed.
+
+\subsubsection{C2: Cell parsing}
+\begin{algorithm}[H]
+\caption{Parse one grid cell into entries}\label{alg:cell}
+\begin{algorithmic}[1]
+\Require cell text $c$, row time $(s,e)$, day $d$, section scope, page legend $\Lambda$
+\Ensure list of entries with raw text and status
+\State $\mathit{parts} \gets$ split $c$ into lines; group lines that belong to one lab sub-group (e.g.\ \texttt{A1 COA Lab JS 606-4})
+\If{$c$ is a break / lunch / activity} \Return one \textsc{Break}/\textsc{Activity} entry \EndIf
+\ForAll{$p \in \mathit{parts}$}
+   \State tokens $\gets$ split $p$ on ``/'', ``,'' and whitespace
+   \State $g \gets$ sub-group token matching \texttt{[A-D][1-4]} or \texttt{Batch$n$} (if any)
+   \State $\rho \gets$ last token matching a room pattern (\texttt{508}, \texttt{606-4}, \texttt{509 old})
+   \State $\phi \gets$ tokens found in $\Lambda$ as faculty codes; $\kappa \gets$ remaining subject tokens
+   \State expand $\kappa$, $\phi$ with $\Lambda$ only if the code exists \emph{on this page}; else keep code + \texttt{INFO}
+   \State inline range ``(2.15--4.15 pm)'' overrides $(s,e)$ if consistent; else flag a conflict
+   \State emit entry$(d, s, e, \kappa, \phi, \rho, \text{scope} + g)$ with raw text, page and cell region
+\EndFor
+\State \textsc{Validate} each entry $\rightarrow$ \textsc{Verified}/\textsc{Unverified}/\textsc{Incomplete}/\textsc{Rejected}
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{C3: Conflict detection (group, sort and sweep)}
+\begin{algorithm}[H]
+\caption{Detect professor, room and batch clashes}\label{alg:conflict}
+\begin{algorithmic}[1]
+\Require entries $E$ of one timetable (classes with day and times, not rejected)
+\Ensure list of conflicts with confidence \textsc{Confirmed}/\textsc{Possible}
+\State $G \gets$ empty hash map
+\ForAll{$x \in E$}
+  \ForAll{resource $(k, \mathit{key}) \in \{$professor, room, batch$\}$ of $x$}
+     \State append $x$ to $G[(k, \mathit{key}, x.\mathit{day})]$ \Comment{id if mapped, else normalised label}
+  \EndFor
+\EndFor
+\ForAll{group $g \in G$}
+   \State sort $g$ by start time
+   \For{$i \gets 1$ \textbf{to} $|g|$}
+     \For{$j \gets i+1$ \textbf{to} $|g|$}
+        \If{$g_j.\mathit{start} \geq g_i.\mathit{end}$} \textbf{break} \Comment{sorted: no later entry can overlap}\EndIf
+        \If{$g_i.\mathit{start} < g_j.\mathit{end} \wedge g_j.\mathit{start} < g_i.\mathit{end}$ \textbf{and not} \textsc{Intended}$(g_i, g_j)$}
+            \State report $(k, g_i, g_j)$; \textsc{Confirmed} if both verified, mapped and certain
+        \EndIf
+     \EndFor
+   \EndFor
+\EndFor
+\Function{Intended}{$a, b$}: same source cell, same combined session on several pages, parallel
+elective options, or a sub-group's own written period \EndFunction
+\end{algorithmic}
+\end{algorithm}
+On the real PDF a naive pairwise check reported 542 overlaps. Adding the intended-overlap rules in
+two refinement steps (first 25, then 2) left exactly the \textbf{2 genuine clashes}, which we
+confirmed by hand against the PDF (Section~10.3).
+
+\subsubsection{C4 and C5: Query interpretation}
+\begin{algorithm}[H]
+\caption{Answer a natural-language question}\label{alg:query}
+\begin{algorithmic}[1]
+\Require text $q$, authenticated principal $u$, optional domain hint
+\Ensure response envelope
+\State $p \gets \textsc{Parse}(q)$: normalise; extract dates, weekdays, times (with ambiguity), ``now'', ``after lunch'', anchored mentions (``prof X'', ``room 508'', ``5th floor'')
+\If{$p$ asks to compare personal and college data} \Return \texttt{UNSUPPORTED\_INTENT} (Q30) \EndIf
+\State $\mathit{ctx} \gets \textsc{ResolveContext}(u, \text{hint})$ \Comment{domain, timetable, time zone, now; server side}
+\State $V \gets$ vocabulary of labels of \emph{this} timetable only
+\State $M \gets \textsc{Scan}(p, V)$: longest-first n-gram match ($n = 4..1$) of unanchored mentions
+\State $I \gets \textsc{Classify}(p, M)$: ordered rules; first match wins
+\If{$I = \bot$} \Return \texttt{UNSUPPORTED\_INTENT} with example questions \EndIf
+\State check $I$ allowed for role and domain; check student/staff mapping exists
+\ForAll{required parameter $\pi$ of $I$}
+   \If{$\pi$ missing or ambiguous (a.m./p.m., date, several entities)} \Return \texttt{CLARIFICATION\_REQUIRED} with choices \EndIf
+\EndFor
+\State $\mathit{rows} \gets$ execute template $T(I)$ with bound, typed parameters and role scope
+\State \Return \texttt{OK} / \texttt{NO\_MATCH} / \texttt{DATA\_UNVERIFIED} with warnings
+\end{algorithmic}
+\end{algorithm}
+Entity resolution (C5) works in this order: (1) exact match of normalised label, id or alias;
+(2) a \emph{unique} whole-word match (``desai'' $\rightarrow$ Prof.\ Kiran K.\ Desai); (3) fuzzy
+suggestions (RapidFuzz similarity) that are \emph{always shown as choices}, never auto-selected.
+
+\subsubsection{C6: Next class and free rooms}
+\begin{algorithm}[H]
+\caption{Next class and free rooms}\label{alg:next}
+\begin{algorithmic}[1]
+\Function{NextClass}{scope, now, $H=7$}
+  \For{$k \gets 0$ \textbf{to} $H$} \Comment{today, then following days (one weekly cycle)}
+     \State $D \gets \mathit{now}.\mathit{date}+k$;\; $t_0 \gets (k=0)\;?\;\mathit{now}.\mathit{time} : 00{:}00$
+     \State $x \gets$ first entry in scope with $(\mathit{class\_date}=D \vee (\mathit{class\_date}=\bot \wedge \mathit{dow}=\mathrm{isodow}(D)))$, start $> t_0$, time certain, ordered by start
+     \Comment{index $(\mathit{timetable}, \mathit{dow}, \mathit{start})$}
+     \If{$x \neq \bot$} \Return $x$ \EndIf
+  \EndFor
+  \State \Return \texttt{NO\_MATCH}
+\EndFunction
+\Function{FreeRooms}{$D, t$, floor}
+  \State $B \gets \{x.\mathit{room} : x \text{ on } D,\; x.\mathit{start} \le t < x.\mathit{end}\} \cup \{\text{rooms of uncertain entries}\}$ \Comment{uncertain = busy}
+  \State \Return $\{r \in \text{Rooms}(\text{floor}) : r \notin B\}$; warn if some room labels are unmapped
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{C7: Job claiming}
+\begin{lstlisting}[language=SQL,caption={Job claim executed by every worker (simplified)},label=lst:claim]
+SELECT * FROM processing_job
+ WHERE status = 'QUEUED'
+    OR (status = 'RUNNING' AND heartbeat_at < now() - interval '10 minutes')
+ ORDER BY created_at          -- FIFO
+ LIMIT 1
+ FOR UPDATE SKIP LOCKED;      -- a row locked by another worker is skipped, not waited for
+\end{lstlisting}
+
+\subsection{Flowcharts}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=4.5mm]
+\node[term] (s) {Start: job claimed};
+\node[blk,below=of s] (a) {Detect format (magic bytes)};
+\node[dec,below=of a] (d1) {PDF?};
+\node[blk,right=12mm of d1,text width=40mm] (o) {Office/CSV/image adapter\\(openpyxl, python-docx, OCR)};
+\node[blk,below=of d1] (b) {Per page: text + words with coordinates};
+\node[dec,below=of b] (d2) {enough\\text?};
+\node[blk,right=12mm of d2] (ocr) {Tesseract OCR};
+\node[blk,below=of d2] (c) {Ruled tables (keep merged spans)\\or geometric gutter fallback};
+\node[blk,below=of c] (g) {Common Grid model};
+\node[blk,below=of g] (h) {Sections, W.E.F., tentative; time rows (Alg.~\ref{alg:time})};
+\node[blk,below=of h] (i) {Cells $\rightarrow$ entries (Alg.~\ref{alg:cell}); legend expansion};
+\node[blk,below=of i] (j) {Map labels to master data (unique exact match)};
+\node[blk,below=of j] (k) {Validate, status per entry, timetable status};
+\node[term,below=of k] (e) {Persist + notify};
+\draw[arr] (s)--(a); \draw[arr] (a)--(d1); \draw[arr] (d1)--node[lbl,right]{yes}(b); \draw[arr] (d1)--node[lbl,above]{no}(o);
+\draw[arr] (o.south) |- (g.east);
+\draw[arr] (b)--(d2); \draw[arr] (d2)--node[lbl,right]{yes}(c); \draw[arr] (d2)--node[lbl,above]{no}(ocr);
+\draw[arr] (ocr.south) |- (c.east);
+\draw[arr] (c)--(g); \draw[arr] (g)--(h); \draw[arr] (h)--(i); \draw[arr] (i)--(j); \draw[arr] (j)--(k); \draw[arr] (k)--(e);
+\end{tikzpicture}
+\caption{Flowchart of the extraction pipeline}
+\label{fig:flowextract}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=4.5mm]
+\node[term] (s) {Question text};
+\node[blk,below=of s] (p) {Parse: dates, times, entities};
+\node[dec,below=of p] (x) {cross-\\domain?};
+\node[blk,right=12mm of x,fill=red!10] (x1) {UNSUPPORTED (Q30)};
+\node[blk,below=of x] (c) {Resolve context (server)};
+\node[blk,below=of c] (v) {Scan vocabulary of this timetable};
+\node[dec,below=of v] (k) {intent\\found?};
+\node[blk,right=12mm of k,fill=red!10] (k1) {UNSUPPORTED +\\examples};
+\node[dec,below=of k] (r) {allowed for\\role/domain?};
+\node[blk,right=12mm of r,fill=red!10] (r1) {Refuse (reason)};
+\node[dec,below=of r] (m) {params\\complete?};
+\node[blk,right=12mm of m,fill=yellow!20] (m1) {CLARIFICATION\\(choices)};
+\node[blk,below=of m] (t) {Run template QTnn (bound params, role scope)};
+\node[term,below=of t] (e) {OK / NO\_MATCH / DATA\_UNVERIFIED};
+\draw[arr] (s)--(p); \draw[arr] (p)--(x); \draw[arr] (x)--node[lbl,above]{yes}(x1); \draw[arr] (x)--node[lbl,right]{no}(c);
+\draw[arr] (c)--(v); \draw[arr] (v)--(k); \draw[arr] (k)--node[lbl,above]{no}(k1); \draw[arr] (k)--node[lbl,right]{yes}(r);
+\draw[arr] (r)--node[lbl,above]{no}(r1); \draw[arr] (r)--node[lbl,right]{yes}(m);
+\draw[arr] (m)--node[lbl,above]{no}(m1); \draw[arr] (m)--node[lbl,right]{yes}(t); \draw[arr] (t)--(e);
+\end{tikzpicture}
+\caption{Flowchart of the query engine}
+\label{fig:flowquery}
+\end{figure}
+
+\subsection{Data Structure Selection}
+\begin{table}[H]
+\centering
+\caption{Data structures used and why}
+\label{tab:ds}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}p{4.3cm}X@{}}
+\toprule
+\textbf{Data structure} & \textbf{Where} & \textbf{Reason}\\
+\midrule
+Hash map (dict) & Conflict groups keyed by (resource, key, day); page legend; vocabulary n-gram index & $O(1)$ average lookup and grouping, replacing $O(n^2)$ all-pairs comparison\\
+Hash set & Seen conflict pairs; used tokens; role sets & De-duplication in $O(1)$\\
+Sorted array + sweep & Entries per group sorted by start time & Early \texttt{break} when no later interval can overlap\\
+2-D grid (list of rows of cells with span) & \texttt{Grid} model shared by all adapters & Natural model of a timetable; merged cells keep row/column span\\
+Tree (parent pointer) & Batch hierarchy SE $\rightarrow$ SE-A $\rightarrow$ SE-A1 & A lab group inherits division classes by walking to the root ($O(\text{depth})$, depth $\le 3$)\\
+Queue (FIFO) & \texttt{processing\_job} ordered by \texttt{created\_at} & Fair processing order; persistent across crashes\\
+B-tree index & PostgreSQL composite indexes & $O(\log n)$ range scans on (timetable, day, start)\\
+Search tree of assignments & Time-row backtracking (Alg.~\ref{alg:time}) & Explores consistent readings; pruned by ordering constraint\\
+Immutable registry (tuple/dict) & Intents Q01--Q30 and templates QT01--QT22 & Closed set; unknown intents cannot be executed\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Algorithm Selection and Justification}
+\begin{table}[H]
+\centering
+\caption{Alternatives considered for the key algorithms}
+\label{tab:algsel}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.8cm}XXp{3cm}@{}}
+\toprule
+\textbf{Problem} & \textbf{Alternative} & \textbf{Chosen} & \textbf{Justification}\\
+\midrule
+Clash detection & All pairs, $O(n^2)$ & Group by resource (hash) + sort + sweep & Same result, $O(n\log n + m)$; simpler to explain intended-overlap rules per group\\
+Clash detection & Interval tree & Sorted sweep & Groups are small (tens of entries); a tree adds code without measurable gain\\
+Time labels & Trust printed a.m./p.m.\ & Constrained backtracking with uniqueness & Printed markers are wrong in the real PDF; uniqueness gives provable certainty\\
+Question understanding & LLM text-to-SQL; trained intent classifier & Ordered rules + vocabulary scan + templates & Deterministic, explainable, injection-safe, no training data or API cost~\cite{androutsopoulos1995,pedro2023}\\
+Entity matching & Fuzzy auto-select & Exact $\rightarrow$ unique word $\rightarrow$ fuzzy \emph{suggestions} & Avoids silently picking the wrong professor\\
+Job distribution & Redis/RabbitMQ & PostgreSQL \texttt{SKIP LOCKED} & One less service; job creation is transactional with the upload\\
+Table extraction & Deep-learning table detector & PyMuPDF ruled tables + geometric fallback & Text PDFs are exact; no GPU; explainable failures\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Time Complexity Analysis}
+Let $n$ be the number of entries in a timetable, $r$ the rows of a grid section, $w$ the words in a
+question, $|V|$ the vocabulary size, $m$ the number of overlapping pairs reported, and $R$ the number of rooms.
+
+\begin{table}[H]
+\centering
+\caption{Time complexity of critical operations}
+\label{tab:timecx}
+\small
+\begin{tabularx}{\textwidth}{@{}p{4.3cm}p{3.5cm}X@{}}
+\toprule
+\textbf{Operation} & \textbf{Complexity} & \textbf{Remarks}\\
+\midrule
+Time-row resolution & worst $O(4^{r})$, bounded by 64 solutions; typical $O(r)$ & $r \le 12$ rows, $\le 4$ readings each; the ordering constraint prunes almost all branches\\
+Cell parsing (whole PDF) & $O(C \cdot \ell)$ & $C$ cells, $\ell$ tokens per cell; legend lookup $O(1)$\\
+Conflict detection & $O(n \log n + m)$ average & Hash grouping $O(n)$, sort per group, sweep with early break. Worst case (all overlapping in one group) $O(n^2)$\\
+Division vs sub-group check & $O(d^2)$ per day & $d$ entries with batch label on a day; acceptable for $d \approx 100$, see Section 5.8\\
+Parse + classify question & $O(w)$ & Fixed number of regular expressions\\
+Vocabulary scan & $O(4w)$ lookups & n-gram sizes 4..1, hash index built in $O(|V|)$\\
+Next class & $O(H \log n)$ & At most $H{=}7$ index range scans\\
+Free rooms & $O(\log n + k + R)$ & $k$ entries at that time, set difference over $R$ rooms\\
+Job claim & $O(\log J)$ & Index on (status, created\_at)\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Space Complexity Analysis}
+Extraction holds one document's grid in memory: $O(C)$ cells plus $O(n)$ entries, a few megabytes
+for a 10-page PDF. OCR is the largest consumer (one page image at native resolution at a time, so
+memory is bounded by one page). Conflict detection uses $O(n)$ for the hash groups and $O(m)$ for
+results. The backtracking stores at most 64 assignments of length $r$, so $O(64r)$. The query
+vocabulary is $O(|V|)$ per request (about 200 labels for the real timetable). The database stores one
+row per entry, so 570 rows (453 classes plus breaks and activities) for the real PDF. The whole
+development database with this timetable, users and history measured \textbf{12~MB}.
+
+\subsection{Optimisation Opportunities}
+\begin{itemize}
+\item \textbf{Done -- N+1 queries removed:} loading related course/staff/room/batch rows eagerly cut
+      the number of SQL statements per search from about 50 to about 25 (Section~8.9).
+\item \textbf{Done -- batched vocabulary loading:} one query per entity type instead of one per label.
+\item \textbf{Possible -- division-pair sweep:} the $O(d^2)$ loop can use the same sort-and-break
+      sweep as the main groups.
+\item \textbf{Possible -- vocabulary cache:} cache the vocabulary per (timetable, data\_version); it
+      changes only on correction or activation.
+\item \textbf{Possible -- parallel page extraction:} pages are independent, so OCR of scanned PDFs
+      could use a process pool.
+\end{itemize}
+
+\newpage

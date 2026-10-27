@@ -1,0 +1,186 @@
+\section{Software Requirements Specification (SRS)}
+
+\subsection{Purpose and Scope of the SRS}
+This SRS defines what the Dynamic Timetable system must do (functional requirements) and how well
+it must do it (non-functional requirements) for its first release (V1). It is the reference for
+design (Chapter~4), implementation (Chapter~7) and testing (Chapter~9): every functional requirement
+has an identifier that appears in the test-case table (Section~9.8). The SRS covers the back-end
+API, the extraction worker and the cross-platform client; timetable \emph{generation}, attendance and
+ERP integration are excluded (Section~1.5).
+
+\subsection{Intended Users and Stakeholders}
+\begin{table}[H]
+\centering
+\caption{Users, stakeholders and their goals}
+\label{tab:users}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3cm}X@{}}
+\toprule
+\textbf{User / stakeholder} & \textbf{Goals and permissions}\\
+\midrule
+Student & See own batch and lab-group classes, next class, free periods, free rooms; ask questions; keep a private personal timetable.\\
+Professor & See own teaching schedule and free periods; find rooms; locate colleagues' \emph{scheduled} room.\\
+HOD & Everything a professor can do, plus the department's clash report, floor activity and room usage.\\
+Principal & College-wide read access to dashboards, clashes and room usage.\\
+Admin (timetable coordinator) & Upload, review, correct and activate official timetables; manage master data, users, roles and promotions; read the audit log. Cannot read anyone's personal timetable.\\
+Timetable committee & Benefits from automatic clash detection before publishing.\\
+College management & Transparent version history; better room utilisation.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Overall Product Description}
+\paragraph{System environment.}
+A client--server system. Clients are the Expo/React Native app (Android, iOS) and the same app compiled
+for the web (laptop browsers, home-screen web app). The server is a stateless FastAPI application
+behind HTTPS, a PostgreSQL database, a background worker for extraction and private file storage for
+uploaded originals.
+
+\paragraph{Major functions.}
+(1) authentication and role-based authorisation; (2) timetable upload, extraction, validation, review,
+correction and activation; (3) archives and primary (default) selection per domain; (4) dashboards and
+weekly views; (5) natural-language search; (6) conflict detection; (7) academic administration
+(departments, years, batches, courses, rooms, users, promotion); (8) notifications and audit.
+
+\paragraph{Dependencies.}
+PostgreSQL 14+ (tested 16); Tesseract OCR for scans/photos; LibreOffice only for legacy
+\texttt{.xls}/\texttt{.doc}; an SMTP server for e-mail (optional; without it the Admin hands out
+activation codes); Expo push service for push notifications (store builds only).
+
+\paragraph{Operating conditions.}
+Times are stored as local wall-clock times of the institute; ``now'' is computed in the user's IANA
+time zone (default \texttt{Asia/Kolkata}). Week start, lunch boundary and working hours are configured
+by the Admin and never assumed.
+
+\subsection{Functional Requirements}
+Table~\ref{tab:fr} lists the functional requirements. For each one it gives the input, the expected
+processing and output, and the acceptance criterion used in testing.
+
+\begingroup\small
+\begin{longtable}{@{}p{1.1cm}p{3.4cm}p{6.2cm}p{4.9cm}@{}}
+\caption{Functional requirements}\label{tab:fr}\\
+\toprule
+\textbf{ID} & \textbf{Requirement} & \textbf{Input $\rightarrow$ processing $\rightarrow$ output} & \textbf{Acceptance criterion}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Requirement} & \textbf{Input $\rightarrow$ processing $\rightarrow$ output} & \textbf{Acceptance criterion}\\
+\midrule
+\endhead
+FR-01 & Sign-in with college e-mail and password & E-mail, password $\rightarrow$ Argon2id verify, account-status check, rate limit $\rightarrow$ 15-min access JWT + rotating refresh token & Wrong e-mail or password gives the same generic error; suspended account refused\\
+FR-02 & Five roles enforced on the server & Request + token $\rightarrow$ roles loaded from \texttt{USER\_ROLE} on every request $\rightarrow$ allowed / 403 & No endpoint trusts a client-sent role; role change invalidates old tokens\\
+FR-03 & Upload a timetable (PDF, image, XLSX/XLS, CSV, DOCX/DOC) & File $\rightarrow$ extension allow-list, content-signature check, size/page limits, private storage, SHA-256, job queued $\rightarrow$ archive record (\textsc{Queued}) & Upload never changes the primary timetable; retries with the same request id are idempotent\\
+FR-04 & Extract class entries & Stored file $\rightarrow$ worker: page inspection, table/OCR extraction, sections, time rows, cell parsing, legend expansion, mapping $\rightarrow$ entries with provenance and status & Real college PDF: $\geq 95\%$ of class entries \textsc{Verified}; nothing guessed silently\\
+FR-05 & Validate and classify the timetable & Entries $\rightarrow$ checks (missing fields, duplicates, time consistency, overlaps) $\rightarrow$ \textsc{Ready} / \textsc{Needs Review} / \textsc{Unusable} / \textsc{Failed} & Unusable timetables cannot become primary\\
+FR-06 & Review and correct entries & Admin edits $\rightarrow$ before/after snapshot in \texttt{ENTRY\_CORRECTION}, audit row $\rightarrow$ corrected entry & Original value always recoverable; entry becomes \textsc{Verified} only by explicit reviewer action\\
+FR-07 & Activate the official timetable & Admin action $\rightarrow$ settings row locked, primary switched, version incremented, users notified $\rightarrow$ new primary & Concurrent activations serialise; next request sees the new primary\\
+FR-08 & Archives and selection & User picks an older version $\rightarrow$ selection remembered per domain $\rightarrow$ searches run on that archive with a banner & Archive browsing never mixes domains\\
+FR-09 & Role dashboard & Login $\rightarrow$ current class, next class with countdown, free periods, later today $\rightarrow$ cards & Dashboard and typed questions give identical answers\\
+FR-10 & Weekly timetable view & Day selection $\rightarrow$ entries for the user's batch and lab group (and parent division) $\rightarrow$ list with room/teacher & Lab group A1 does not see A2's labs\\
+FR-11 & Natural-language search & English text $\rightarrow$ parse, classify into one of 30 intents, resolve entities in this timetable, validate, run one template $\rightarrow$ result envelope & No SQL generated from text; ambiguous a.m./p.m., date or entity asks for clarification\\
+FR-12 & Free-room and professor-availability search & Time/date, optional floor $\rightarrow$ room inventory minus scheduled rooms $\rightarrow$ free rooms / free periods & Uncertain entries treated as busy; incomplete inventory reported\\
+FR-13 & Conflict detection & Timetable $\rightarrow$ interval overlap per professor, room, batch, excluding parallel lab groups and electives $\rightarrow$ conflict list & Real PDF: exactly the 2 genuine clashes reported\\
+FR-14 & Personal timetables & Own upload $\rightarrow$ same pipeline, stored in personal tables $\rightarrow$ private timetable & Other users (including Admin) get 404 for it\\
+FR-15 & Academic promotion & Admin preview + confirm $\rightarrow$ transactional update of placements with history $\rightarrow$ students moved to next year/batch & All-or-nothing; history preserved; concurrent promotions cannot double-apply\\
+FR-16 & Master data management & Admin forms $\rightarrow$ validated CRUD of departments, years, batches, courses, rooms, aliases $\rightarrow$ records & Duplicates and invalid references rejected\\
+FR-17 & User and account management & Admin $\rightarrow$ register student/staff, roles, suspend, issue access code $\rightarrow$ accounts & Suspension revokes sessions immediately\\
+FR-18 & Notifications & Activation and job completion $\rightarrow$ in-app notification (push in store builds) $\rightarrow$ notification list & Users see only their own notifications\\
+FR-19 & Audit log & Sensitive actions $\rightarrow$ append-only audit events $\rightarrow$ Admin audit screen & Uploads, activations, corrections, promotions, access denials logged\\
+\bottomrule
+\end{longtable}
+\endgroup
+
+\subsection{Non-Functional Requirements}
+\begin{table}[H]
+\centering
+\caption{Non-functional requirements}
+\label{tab:nfr}
+\small
+\begin{tabularx}{\textwidth}{@{}p{1.3cm}p{2.7cm}X@{}}
+\toprule
+\textbf{ID} & \textbf{Category} & \textbf{Requirement}\\
+\midrule
+NFR-01 & Performance & Median search response $<300$~ms for one user; extraction of a 10-page PDF $<10$~s.\\
+NFR-02 & Scalability & Stateless API that scales horizontally by adding processes; workers scale independently.\\
+NFR-03 & Availability, reliability & Correct answers under concurrent use; idempotent uploads; failed jobs retried up to 3 times; health endpoint for the platform.\\
+NFR-04 & Security & Argon2id passwords, JWT + refresh-token rotation and reuse detection, RBAC, IDOR protection, rate limiting, parameterised SQL only, secrets never in the app bundle.\\
+NFR-05 & Privacy & Personal timetables visible only to their owner; no free text in logs.\\
+NFR-06 & Usability, accessibility & Readable in light and dark mode; large tap targets; plain-English questions; clarifications with tappable choices.\\
+NFR-07 & Maintainability & Modular layers (API, services, query, extraction); typed code (Pydantic, TypeScript strict); automated tests; documented decisions.\\
+NFR-08 & Portability & One code base for Android, iOS and web; Docker image for any Linux host.\\
+NFR-09 & Resource utilisation & One API worker $<300$~MB RAM; database $<50$~MB for one institute's timetables.\\
+NFR-10 & Auditability & Every entry keeps raw text, page, parser version and status; every correction keeps before/after.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Hardware and Software Requirements}
+\begin{table}[H]
+\centering
+\caption{Hardware and software requirements}
+\label{tab:hwsw}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.4cm}X@{}}
+\toprule
+\textbf{Item} & \textbf{Requirement / version used}\\
+\midrule
+Development machine & Any laptop with 8~GB RAM, 4 CPU cores (Windows, macOS or Linux)\\
+Server (demo) & Render free web service (0.1 CPU, 512~MB RAM) + free PostgreSQL\\
+Server (recommended) & 2 vCPU, 2--4~GB RAM, managed PostgreSQL, HTTPS\\
+Client devices & Android 8+ or iOS 16+ phone; any modern browser\\
+Back-end language & Python 3.13 (3.12+ supported)\\
+Web framework & FastAPI 0.143, Uvicorn, Pydantic v2\\
+Database & PostgreSQL 16, SQLAlchemy 2.1 ORM, Alembic migrations, psycopg 3\\
+Extraction libraries & PyMuPDF, Tesseract OCR (pytesseract), Pillow, openpyxl, python-docx, LibreOffice (legacy formats)\\
+Security libraries & argon2-cffi, PyJWT\\
+Front end & TypeScript (strict), React 19.3, React Native 0.88, Expo SDK 58, Expo Router, TanStack Query, React Hook Form + Zod, Expo SecureStore\\
+Testing & pytest, Jest (jest-expo), Playwright (Chromium), custom load script\\
+Tools & Git and GitHub, VS Code, Docker, Render, Expo Go\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Constraints and Assumptions}
+\paragraph{Constraints.}
+\begin{itemize}
+\item \textbf{Financial:} zero budget, so only free and open-source software and free hosting tiers were used.
+      The free tier sleeps after 15 minutes idle and its database expires after 30 days.
+\item \textbf{Technical:} the source of truth is a human-formatted PDF whose layout can change every
+      semester; the parser must tolerate this and report what it cannot read.
+\item \textbf{Operational:} the system must not change the official timetable without explicit Admin
+      activation, and the Admin must never be able to read personal timetables.
+\item \textbf{Time:} one semester alongside regular course work.
+\end{itemize}
+\paragraph{Assumptions.}
+\begin{itemize}
+\item The timetable repeats weekly within a semester (date-specific entries are supported but rare).
+\item Users have a college e-mail address issued by the institute.
+\item Room floors can be derived from the room number (e.g.\ 508 $\rightarrow$ floor 5) until the
+      Admin corrects them.
+\item Interval convention: a class from 9:00 to 10:00 occupies $[9{:}00, 10{:}00)$.
+\end{itemize}
+
+\subsection{Use Cases and User Stories}
+\begin{table}[H]
+\centering
+\caption{User stories and expected system responses}
+\label{tab:stories}
+\small
+\begin{tabularx}{\textwidth}{@{}p{1cm}p{6.4cm}X@{}}
+\toprule
+\textbf{ID} & \textbf{User story} & \textbf{Expected system response}\\
+\midrule
+US-1 & As a \textbf{student of SE-A1}, I want to see my next class when I open the app. & Home shows the next class, its room, teacher and a countdown; only A1's labs are included.\\
+US-2 & As a student, I want to ask ``Do I have classes after lunch on Tuesday?'' & Uses the SE lunch row (1:15--2:15) from the timetable and lists classes from 2:15.\\
+US-3 & As a student, I ask ``Am I free at 2?'' & Asks ``2~a.m.\ or 2~p.m.?'' and the date, with tappable choices; never guesses.\\
+US-4 & As a \textbf{professor}, I want my schedule today and my free periods. & Lists classes mapped to my staff record and the gaps within working hours.\\
+US-5 & As a professor, I want a free room on floor 6 at 11~am. & Lists rooms on floor 6 with no class overlapping 11:00 that day.\\
+US-6 & As the \textbf{HOD}, I want to know about clashes before the semester starts. & Conflicts screen lists professor/room/batch overlaps with page references.\\
+US-7 & As the \textbf{Admin}, I upload the revised PDF and publish it. & Upload $\rightarrow$ worker extracts $\rightarrow$ validation summary $\rightarrow$ review $\rightarrow$ activate $\rightarrow$ everyone notified.\\
+US-8 & As a student, I upload my coaching-class timetable. & Stored in my personal domain; never mixed with the college timetable; invisible to others.\\
+US-9 & As the Admin, at year end I promote SE students to TE. & Preview of moves, confirm once, history kept; next login shows the TE timetable.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\newpage

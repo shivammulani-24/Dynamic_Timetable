@@ -1,0 +1,83 @@
+\section{Conclusion and Future Scope}
+
+\subsection{Conclusion}
+The college timetable is consulted by everyone every day, yet it exists only as a dense PDF that has
+to be read by hand, with no search, no personal view, no version control and no clash checking. This
+mini project built \emph{Dynamic Timetable}, a role-based timetable monitoring system that reads the
+timetable as it is actually published (PDF, scanned image, Excel or Word), extracts every class with
+its source page and a verification status, detects clashes, and serves students, professors, the HOD,
+the Principal and the Admin through one app on Android, iPhone and laptop. Users can ask everyday
+questions in plain English. A deterministic engine with 30 intents and 22 parameterised templates
+answers them in about 40~ms without ever generating SQL, and it asks for clarification instead of
+guessing. On the college's real 10-page timetable the system verified 452 of 453 class entries
+automatically and found the two genuine clashes in the published document. The system is covered by
+159 back-end tests, 18 app tests and end-to-end browser tests, and it runs as a free online demo.
+
+\subsection{Achievement of Objectives}
+\begin{itemize}
+\item \textbf{Achieved:} O1 (99.8\% verified), O2 (all formats through one pipeline), O3 (five roles,
+      server-side), O4 (30 intents), O5 (0 false clash reports), O6 (strict domain separation and
+      archives), O9 (all tests passing).
+\item \textbf{Achieved on development hardware:} O7 (latency and correctness under 32 concurrent
+      clients). It still has to be confirmed on production hardware.
+\item \textbf{Partially achieved:} O8. The app runs on Android and iPhone through Expo Go and on
+      laptops through the web and the online demo, but installable store builds (APK/TestFlight) have
+      not yet been produced.
+\end{itemize}
+
+\subsection{Major Engineering Contributions}
+\begin{enumerate}
+\item A timetable-aware extraction pipeline with constrained backtracking for inconsistent time labels,
+      stacked lab-group parsing, page-local legends and per-entry provenance.
+\item A conflict detector that separates intended overlaps (parallel labs, electives, shared sessions)
+      from genuine clashes in $O(n\log n + m)$.
+\item A safe natural-language interface: closed intent registry, timetable-scoped entity resolution,
+      clarification instead of guessing, and parameterised templates, which make it injection-proof by design.
+\item A secure multi-role architecture: Argon2id, rotating refresh tokens with reuse detection,
+      database-level ownership constraints (composite FKs, partial unique indexes) and audited corrections.
+\item A free, reproducible deployment: Docker image, infrastructure as code (\texttt{render.yaml}) and
+      continuous deployment from Git.
+\end{enumerate}
+
+\subsection{Current Limitations}
+\begin{itemize}
+\item \textbf{Technical:} extraction accuracy has not been measured against a hand-labelled ground truth;
+      new timetable layouts may need parser rules; the rate limiter is per process; co-taught cells
+      (``RRS+SB'') are not linked to both teachers' personal schedules.
+\item \textbf{Functional:} the system does not generate timetables; questions outside the 30
+      intents are politely refused; teacher location is the \emph{scheduled} room, not tracked.
+\item \textbf{Operational:} the free demo sleeps when idle and its database expires every 30 days;
+      push notifications and e-mail are not yet active; room floors were derived from room numbers and
+      must be checked by the Admin.
+\end{itemize}
+
+\subsection{Future Enhancements}
+\begin{enumerate}
+\item Measure precision/recall on hand-labelled pages and publish per-field accuracy.
+\item College single sign-on (OIDC/Google Workspace) instead of separate passwords.
+\item Store builds (Android APK / Play Store, iOS TestFlight) with push notifications for timetable
+      changes and ``class starting in 10 minutes'' reminders.
+\item ``What changed?'' diff between two official versions, sent to affected users only.
+\item Bulk CSV import of students, staff and rooms; many-to-many teacher links for co-taught classes.
+\item An optional LLM \emph{suggester} that proposes an intent and parameters for unusual phrasings,
+      which must still pass the same validation and templates (never free SQL).
+\item Room-utilisation analytics for the HOD and Principal; exam-timetable support.
+\item Capacity testing on production hardware; a shared rate-limit store and vocabulary caching for
+      multi-instance deployment.
+\end{enumerate}
+
+\subsection{Lessons Learned}
+\begin{itemize}
+\item \textbf{Test with real data early.} The real PDF broke assumptions that synthetic data never would.
+\item \textbf{Make uncertainty visible.} Statuses, raw text and page numbers turned possible silent
+      errors into review tasks.
+\item \textbf{Security is a design decision.} Choosing templates over generated SQL removed a whole
+      class of attacks; our own audit still found a critical bug (P0-1), which showed us the value of reviewing our own code adversarially.
+\item \textbf{Automated tests make change safe.} The SDK upgrade and the parser changes were made with
+      confidence because 200+ tests guarded behaviour.
+\item \textbf{Project management:} risk-first ordering (extraction before UI), small increments,
+      one commit per working increment, and documenting decisions (why, not only what) kept the
+      project on schedule and easy to explain.
+\end{itemize}
+
+\newpage

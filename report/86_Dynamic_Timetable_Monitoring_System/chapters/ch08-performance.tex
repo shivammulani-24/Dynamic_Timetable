@@ -1,0 +1,243 @@
+\section{Scalability, Performance and Resource Management}
+\noindent\fbox{\parbox{\dimexpr\textwidth-2\fboxsep-2\fboxrule}{\small
+\textbf{Tested vs.\ projected.} All numbers in this chapter labelled \emph{measured} were collected by us
+on the development machine described in Section~8.6, with the real college timetable loaded. Numbers
+labelled \emph{projected} are estimates and have not been tested on production hardware.}}
+
+\subsection{Scalability Requirements}
+\begin{table}[H]
+\centering
+\caption{Expected scale of one institute (projected)}
+\label{tab:scale}
+\small
+\begin{tabularx}{\textwidth}{@{}Xp{6cm}@{}}
+\toprule
+\textbf{Quantity} & \textbf{Expected value}\\
+\midrule
+Registered users (students + staff) & 2{,}000--3{,}000\\
+Batches / lab groups & 50--100 (real PDF: 46)\\
+Class entries per official timetable & 500--1{,}000 (real PDF: 453 classes, 570 rows)\\
+Timetable versions per semester & 3--10\\
+Peak concurrent users (e.g.\ just after a timetable change) & 50--200\\
+Peak request rate & 20--60 requests/s (a few requests per active user per minute)\\
+Uploads & a few per week; each $\leq$ 15 MB, $\leq$ 30 pages\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Workload and Load Model}
+The load test simulates students using the app at the same time:
+\begin{itemize}
+\item $N \in \{1, 2, 4, 8, 16, 32\}$ concurrent clients (threads), each logged in as a
+      \emph{different} real student account (37 accounts, one per lab group).
+\item Each client sends 30 search requests back-to-back with no think time (closed-loop, worst case),
+      cycling through five realistic questions: ``What is my next class?'', ``What are my classes on
+      Monday?'', ``Do I have classes after lunch on Tuesday?'', ``Which rooms are free at 10~am
+      today?'' and ``Find all DBMS classes''.
+\item Total requests per run $= 30N$ (30 to 960).
+\item Every response is checked: HTTP 200 with \texttt{OK}/\texttt{NO\_MATCH}, or the expected 422
+      clarification. (The M.Tech.\ page has no lunch row, so ``after lunch'' correctly asks for a time.)
+\end{itemize}
+
+\subsection{Resource Utilisation (measured)}
+\begin{table}[H]
+\centering
+\caption{Measured resource utilisation}
+\label{tab:resources}
+\small
+\begin{tabularx}{\textwidth}{@{}p{5.4cm}p{3cm}X@{}}
+\toprule
+\textbf{Resource} & \textbf{Value} & \textbf{How measured}\\
+\midrule
+Memory per API worker process (after load test) & 113--116 MB & \texttt{ps -o rss}, 4 workers\\
+Peak memory, extraction of the 10-page PDF & 82 MB & \texttt{getrusage} max RSS\\
+Database size (one timetable, 91 users, history) & 12 MB & \texttt{pg\_database\_size}\\
+Entry table incl.\ indexes (570 rows) & 592 kB & \texttt{pg\_total\_relation\_size}\\
+Original PDF stored & 420 kB & file size\\
+CPU during 32-client test & $\approx$76\% of 4 cores & process CPU time / wall time\\
+Web app bundle (JavaScript) & 3.5 MB uncompressed & exported bundle size\\
+Network per search & $\approx$1--6 kB JSON & response size (depends on result count)\\
+\bottomrule
+\end{tabularx}
+\end{table}
+The KPI targets were under 300~MB per API worker and under 50~MB of database; both are met with a
+large margin.
+
+\subsection{Concurrent Processing}
+Requests are handled by several independent Uvicorn worker \emph{processes} (4 in the test), each
+with its own connection pool. Because the API is stateless, a request can go to any process. Within a
+process, FastAPI runs synchronous endpoints in a thread pool, so slow database calls do not block other
+requests. Extraction never runs in an API request: it is a job processed by the worker, so a large
+OCR job cannot slow down searches. Shared state lives only in PostgreSQL and is protected by row locks
+(Section~7.7).
+
+\subsection{Scheduling and Synchronisation Analysis}
+\begin{itemize}
+\item \textbf{Request scheduling} is done by the operating system (processes) and Uvicorn's event
+      loop. Under overload, requests queue at the socket. The rising p50 latency beyond 8 clients
+      (Table~\ref{tab:loadresults}) is this queueing delay, since throughput stays flat at the CPU limit.
+\item \textbf{Job scheduling} is FIFO by \texttt{created\_at}. Jobs are short (about 1.5~s for the
+      real PDF), so FIFO gives low waiting times and needs no pre-emption. Round-Robin would only help
+      with long jobs that need to share a worker, which our workload does not have.
+\item \textbf{Synchronisation measurements:} the concurrency tests start 2 activations and 2
+      promotions at the same moment. In every run exactly one wins and the other sees the committed
+      result, with no deadlock and no lost update. The load test reported 0 inconsistent answers.
+\end{itemize}
+
+\subsection{Performance Measurement}
+\begin{itemize}
+\item \textbf{Environment:} Linux VM, 4 vCPU, 15~GB RAM; PostgreSQL 16 on the same machine; API with
+      4 Uvicorn workers; the load generator also on the same machine (which takes CPU from the server,
+      so results are conservative).
+\item \textbf{Data:} the college's real timetable (453 classes), 46 batches, 52 faculty, 42 rooms,
+      91 user accounts.
+\item \textbf{Tools:} a Python script with \texttt{httpx} and threads; \texttt{time.perf\_counter}
+      timestamps around each request; percentiles computed from all samples; \texttt{ps} for CPU and
+      memory. For the load test only, the per-user rate limits were raised, because otherwise the
+      limiter (60 searches/min per user) correctly rejects the synthetic burst.
+\item \textbf{Single-user latency:} 50 sequential requests per question type after one warm-up request.
+\end{itemize}
+
+\subsection{Performance Results (measured)}
+\begin{table}[H]
+\centering
+\caption{Single-user search latency per question type (50 requests each)}
+\label{tab:latency}
+\small
+\setlength{\tabcolsep}{4pt}\begin{tabular}{@{}llrrr@{}}
+\toprule
+\textbf{Intent} & \textbf{Question} & \textbf{Results} & \textbf{p50 (ms)} & \textbf{p95 (ms)}\\
+\midrule
+Q10 Next class & What is my next class? & 1 & 42 & 52\\
+Q02 Day timetable & What are my classes on Monday? & 5 & 44 & 52\\
+Q06 Course search & Find all DBMS classes & 7 & 45 & 51\\
+Q11 After lunch & Do I have classes after lunch on Tuesday? & 3 & 47 & 54\\
+Q15 Professor schedule & What is my schedule on Monday? & 3 & 37 & 46\\
+Q22 Free rooms & Which rooms are free at 10~am today? & 20 & 43 & 51\\
+Q20 Room schedule & Show the schedule of room 508 on Monday & 8 & 41 & 49\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Load test with increasing concurrent clients (4 API workers)}
+\label{tab:loadresults}
+\small
+\begin{tabular}{@{}rrrrrrr@{}}
+\toprule
+\textbf{Clients} & \textbf{Requests} & \textbf{Wrong} & \textbf{req/s} & \textbf{p50 (ms)} & \textbf{p95 (ms)} & \textbf{CPU (\%)}\\
+\midrule
+1 & 30 & 0 & 18.6 & 49 & 57 & 31\\
+2 & 60 & 0 & 25.4 & 75 & 90 & 32\\
+4 & 120 & 0 & 46.5 & 64 & 90 & 48\\
+8 & 240 & 0 & 60.4 & 90 & 141 & 63\\
+16 & 480 & 0 & 54.1 & 183 & 354 & 62\\
+32 & 960 & 0 & 57.4 & 410 & 635 & 76\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.48\textwidth,height=6cm,xmode=log,log basis x=2,xtick={1,2,4,8,16,32},
+  xticklabels={1,2,4,8,16,32},xlabel={Concurrent clients},ylabel={Throughput (req/s)},
+  ymin=0,ymax=70,grid=major,title={\small Throughput}]
+\addplot[thick,mark=*,color=spitblue] coordinates {(1,18.6)(2,25.4)(4,46.5)(8,60.4)(16,54.1)(32,57.4)};
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[width=0.48\textwidth,height=6cm,xmode=log,log basis x=2,xtick={1,2,4,8,16,32},
+  xticklabels={1,2,4,8,16,32},xlabel={Concurrent clients},ylabel={Latency (ms)},
+  ymin=0,grid=major,legend pos=north west,legend style={font=\scriptsize},title={\small Latency}]
+\addplot[thick,mark=*,color=spitblue] coordinates {(1,49)(2,75)(4,64)(8,90)(16,183)(32,410)};
+\addplot[thick,mark=square*,color=orange] coordinates {(1,57)(2,90)(4,90)(8,141)(16,354)(32,635)};
+\legend{p50,p95}
+\end{axis}
+\end{tikzpicture}
+\caption{Throughput and latency under increasing concurrent load (measured)}
+\label{fig:load}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Extraction performance on the real 10-page PDF (median of 5 runs)}
+\label{tab:extractperf}
+\small
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Metric} & \textbf{Value}\\
+\midrule
+Pages / rows produced & 10 / 570 (453 classes)\\
+Extraction time, whole pipeline & 1.65 s (runs: 1.72, 1.65, 1.64, 1.69, 1.64 s)\\
+Per page & $\approx$0.17 s\\
+Peak memory & 82 MB\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Bottleneck Identification}
+\begin{enumerate}
+\item \textbf{CPU of the API processes.} Throughput stops growing at about 55--60 req/s from 8 clients
+      while CPU reaches 60--76\%, and the rest of the CPU is taken by PostgreSQL and the load generator
+      on the same machine. Beyond that point extra clients only add queueing delay, so p50 rises
+      roughly linearly with $N$.
+\item \textbf{Per-request work:} each search resolves the context, loads the vocabulary of the
+      timetable (about 200 labels) and runs one or two templates. Vocabulary loading is the largest
+      repeated cost.
+\item \textbf{Database round trips:} before optimisation a search issued about 50 SQL statements
+      because related rows were loaded lazily (N+1 problem).
+\end{enumerate}
+
+\subsection{Optimisation and Improvement}
+\begin{table}[H]
+\centering
+\caption{Optimisations performed (before/after)}
+\label{tab:optim}
+\small
+\begin{tabularx}{\textwidth}{@{}p{4cm}p{3.2cm}p{3.2cm}X@{}}
+\toprule
+\textbf{Change} & \textbf{Before} & \textbf{After} & \textbf{Effect}\\
+\midrule
+Eager loading of course/staff/room/batch (N+1 fix) & $\approx$50 SQL statements / search & $\approx$25 & Halved round trips; latency now 37--47~ms\\
+Batched vocabulary loading & 1 query per label & 1 query per entity type & Constant number of queries per search\\
+Composite indexes led by \texttt{timetable\_id} & -- & index range scans & ``Now/next'' independent of other timetables' size\\
+Intended-overlap rules in conflict detection & 542 reported overlaps & 2 & Removes false alarms (quality, not speed)\\
+Extraction moved to background worker & -- & API never blocked by OCR & Search latency unaffected by uploads\\
+\bottomrule
+\end{tabularx}
+\end{table}
+Further options: cache the vocabulary per (timetable, \texttt{data\_version}); add more API processes
+or machines (horizontal scaling); use a shared rate-limit store (Redis/PostgreSQL) for several machines.
+
+\subsection{Cloud Deployment and Resource Utilisation}
+\begin{itemize}
+\item \textbf{Architecture:} Figure~\ref{fig:deploy}. One Render \emph{free} web service runs a Docker
+      image (multi-stage build: Node builds the web app, then a Python image with Tesseract runs
+      FastAPI, the worker thread and the static web app), plus a free managed PostgreSQL database.
+\item \textbf{Configuration:} \texttt{render.yaml} (blueprint); the secret key is generated by Render,
+      \texttt{DEMO\_PASSWORD} is entered at deploy time, production mode refuses the published
+      development password, and demo data is seeded only into an empty database.
+\item \textbf{Resources:} free instance with 512~MB RAM and a shared fraction of a CPU. Measured
+      memory of one API process ($\approx$115~MB) plus extraction peak ($\approx$82~MB) fits within it.
+\item \textbf{Limits:} the service sleeps after 15 minutes idle (first request then takes about a
+      minute); the free database expires after 30 days; 750 free instance hours per month~\cite{render}.
+\item \textbf{Scaling approach (projected):} a paid always-on instance with 2+ API processes and a
+      separate worker; managed PostgreSQL with backups; horizontal scaling behind the platform's load
+      balancer, because the API is stateless.
+\end{itemize}
+
+\subsection{Scalability Limitations}
+\begin{itemize}
+\item \textbf{Maximum tested workload:} 32 concurrent closed-loop clients (960 requests) with 0 wrong
+      answers and 57 req/s, on a 4-core development VM shared with the database and the load generator.
+\item \textbf{Projection (not tested):} with think time of about 10~s between requests, 57 req/s
+      corresponds to several hundred simultaneously active users on similar hardware. This is an
+      estimate only; a real capacity test must run on the deployment hardware.
+\item The free cloud tier is much smaller (shared CPU); it is suitable for a demo, not for the whole college.
+\item The rate limiter is per process. With several machines it must move to a shared store.
+\item OCR of large scanned PDFs is CPU-heavy; with many simultaneous uploads more workers are needed.
+\end{itemize}
+
+\newpage

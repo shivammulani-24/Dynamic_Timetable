@@ -1,0 +1,129 @@
+% =====================================================================
+%  Mini Project Report -- Group 86
+%  Dynamic Timetable Monitoring System
+%  Based on the SPIT ESE report template (synopsis.tex).
+%  Build:  latexmk -pdf 86_Dynamic_Timetable_Monitoring_System.tex
+%     or:  pdflatex x3 (for the lists and cross-references)
+% =====================================================================
+\documentclass[12pt,oneside,a4paper]{article}
+\usepackage{epsfig}
+\usepackage{cite}
+\usepackage{geometry}
+\geometry{left=20mm,right=20mm,top=20mm,bottom=50mm}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath,amssymb}
+\usepackage{array,booktabs,tabularx,longtable,multirow,makecell}
+\usepackage[table]{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{adjustbox}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,shapes.multipart,shapes.misc,arrows.meta,positioning,fit,calc,backgrounds}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{fancyhdr}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
+
+\input{details.tex}
+
+% ---------- look & feel ----------------------------------------------
+\setstretch{1.15}
+\setlength{\emergencystretch}{3em}
+\setlength{\parskip}{4pt}
+\definecolor{spitblue}{RGB}{0,84,147}
+\definecolor{boxfill}{RGB}{232,240,252}
+\definecolor{codebg}{RGB}{246,246,246}
+\renewcommand{\arraystretch}{1.25}
+\captionsetup{font=small,labelfont=bf}
+\setlist{itemsep=2pt,topsep=3pt}
+\titleformat{\section}{\Large\bfseries}{Chapter \thesection:}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{0.6em}{}
+\renewcommand{\cftsecpresnum}{}
+\setlength{\cftsecnumwidth}{2em}
+\numberwithin{figure}{section}
+\numberwithin{table}{section}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+\lstset{basicstyle=\ttfamily\small,backgroundcolor=\color{codebg},frame=single,
+  breaklines=true,columns=fullflexible,keepspaces=true,showstringspaces=false}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small \ProjectShortTitle}
+\fancyhead[R]{\small Group \GroupNo}
+\fancyfoot[C]{\thepage}
+\fancyfoot[R]{\small \Department, SPIT}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% TikZ styles shared by all diagrams
+\tikzset{
+  blk/.style={draw=spitblue,thick,rounded corners=3pt,fill=boxfill,align=center,
+              minimum height=8mm,inner sep=4pt,font=\small},
+  ext/.style={draw,thick,fill=orange!15,align=center,minimum height=9mm,inner sep=4pt,font=\small},
+  proc/.style={draw=spitblue,thick,circle,fill=boxfill,align=center,inner sep=2pt,font=\scriptsize,minimum size=19mm},
+  store/.style={draw,thick,shape=rectangle,fill=gray!10,align=center,font=\scriptsize,inner sep=3pt,
+                append after command={\pgfextra{\draw[thick] (\tikzlastnode.north west)--(\tikzlastnode.north east);}}},
+  arr/.style={-{Stealth[length=2.5mm]},thick},
+  darr/.style={{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},thick},
+  lbl/.style={font=\scriptsize,fill=white,inner sep=1pt},
+  dec/.style={draw=spitblue,thick,diamond,aspect=2.2,fill=yellow!15,align=center,font=\scriptsize,inner sep=1pt},
+  term/.style={draw=spitblue,thick,rounded rectangle,fill=green!10,align=center,font=\small,minimum height=7mm},
+}
+
+\newcommand{\stick}{\begin{tikzpicture}[thick,scale=0.9]\draw (0,0.5) circle (0.13); \draw (0,0.37)--(0,0.05) (-0.2,0.27)--(0.2,0.27) (0,0.05)--(-0.15,-0.2) (0,0.05)--(0.15,-0.2);\end{tikzpicture}}
+\begin{document}
+
+\input{frontmatter/title.tex}
+\pagenumbering{roman}
+\input{frontmatter/certificate.tex}
+\input{frontmatter/approval.tex}
+\input{frontmatter/declaration.tex}
+\input{frontmatter/acknowledgement.tex}
+\input{frontmatter/abstract.tex}
+
+\newpage
+\phantomsection\addcontentsline{toc}{section}{Contents}
+\tableofcontents
+\newpage
+\phantomsection\addcontentsline{toc}{section}{List of Figures}
+\listoffigures
+\newpage
+\phantomsection\addcontentsline{toc}{section}{List of Tables}
+\listoftables
+\newpage
+\input{frontmatter/abbreviations.tex}
+
+\newpage
+\pagenumbering{arabic}
+\input{chapters/ch01-introduction.tex}
+\input{chapters/ch02-literature.tex}
+\input{chapters/ch03-srs.tex}
+\input{chapters/ch04-design.tex}
+\input{chapters/ch05-algorithms.tex}
+\input{chapters/ch06-concepts.tex}
+\input{chapters/ch07-implementation.tex}
+\input{chapters/ch08-performance.tex}
+\input{chapters/ch09-testing.tex}
+\input{chapters/ch10-results.tex}
+\input{chapters/ch11-conclusion.tex}
+
+\newpage
+\phantomsection\addcontentsline{toc}{section}{References}
+\input{references.tex}
+
+\end{document}

@@ -1,0 +1,35 @@
+\section*{\centering{Abstract}}
+\addcontentsline{toc}{section}{Abstract}
+\vspace{0.5cm}
+In most colleges the class timetable is published as a multi-page PDF that every student and teacher
+has to read by hand. Finding the next class, a free room or a teacher's location means scanning dense
+grids full of abbreviations, lab sub-groups and footnote legends, and every revision of the timetable
+has to be re-checked manually. Clashes between teachers or rooms are usually discovered only when they
+happen.
+
+This mini project builds \textbf{Dynamic Timetable}, a role-based timetable monitoring system made of
+a cross-platform mobile and web app (React Native with Expo) and a central back end (Python FastAPI
+and PostgreSQL). The Admin uploads the official timetable as PDF, Excel, Word or a photo. A
+background worker extracts every class cell with geometry-aware table parsing and OCR, expands the
+per-page legends, separates lab sub-groups, validates times and flags anything uncertain for review.
+Students, professors, the HOD and the Principal then see a dashboard (current class, next class,
+free periods) and can ask questions in plain English such as ``Do I have classes after lunch on
+Tuesday?'' or ``Which rooms are free at 10~am?''. A deterministic rule-based engine maps each
+question to one of 30 approved intents and 22 parameterised query templates, so it never generates
+SQL and cannot be talked into reading other users' data. Institutional and personal timetables are
+kept strictly separate, and the system automatically detects professor, room and batch clashes.
+
+On the college's real 10-page timetable PDF the system extracted 453 class entries, of which 452
+were verified automatically; the one remaining entry has no time printed in the PDF. It also reported
+exactly the two genuine clashes present in the document. The work is supported by 159 automated
+back-end tests, 18 mobile unit tests and end-to-end browser tests (22/22 and 21/21 passing).
+Measured single-user search latency was about 37--47~ms (median) on a 4-core development machine.
+The system has been deployed as a free online demo. Its limitations are that it has not been load
+tested on production hardware, push notifications need a store build, and extraction accuracy has
+not yet been measured against a hand-labelled ground truth.
+
+\vspace{0.5cm}
+\noindent\textbf{Keywords:} timetable extraction, table recognition, OCR, natural-language interface,
+intent classification, role-based access control, conflict detection, React Native, FastAPI,
+PostgreSQL.
+\newpage
