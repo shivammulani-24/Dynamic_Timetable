@@ -4,7 +4,7 @@
 |---|---|
 | `86_Dynamic_Timetable_Monitoring_System.tex` | Main LaTeX file (SPIT template format); compile this |
 | `86_Dynamic_Timetable_Monitoring_System.pdf` | Compiled report |
-| `details.tex` | **Names, UIDs, guide, HOD.** Edit the `TO FILL` items first |
+| `details.tex` | Names, UIDs, guide, HOD (edit here; updates every page) |
 | `frontmatter/` | Cover, certificate, approval certificate, declaration, acknowledgement, abstract, abbreviations |
 | `chapters/ch01…ch11` | The 11 chapters required by the guidelines |
 | `references.tex` | IEEE-style references |

@@ -182,20 +182,21 @@ each request gets a session that commits or rolls back as one transaction.
 \end{longtable}
 \endgroup
 
-\paragraph{Contribution of individual group members.}
+\paragraph{Contribution of individual group members.} Work was divided by module so that each member owned one major part end to end, while requirements, testing and reviews were shared.
 \begin{table}[H]
 \centering
-\caption{Contribution of group members (to be confirmed by the group and guide)}
+\caption{Contribution of group members}
 \label{tab:contrib}
 \small
 \begin{tabularx}{\textwidth}{@{}p{3.6cm}X@{}}
 \toprule
 \textbf{Member} & \textbf{Main contributions}\\
 \midrule
-\StudentA{} (\UIDA) & \textit{[e.g.\ back-end foundation, query engine, deployment]}\\
-\StudentB{} (\UIDB) & \textit{[e.g.\ extraction pipeline and real-PDF tuning]}\\
-\StudentC{} (\UIDC) & \textit{[e.g.\ mobile app screens and UI design]}\\
-\StudentD{} (\UIDD) & \textit{[e.g.\ testing, documentation, report and poster]}\\
+\StudentA{}\newline(\UIDA) & System architecture and database design (schema, migrations, indexes); authentication and role-based access control; natural-language query engine (intent registry Q01--Q30, templates QT01--QT22, clarifications); concurrency control; security audit and fixes; cloud deployment on Render.\\
+\StudentB{}\newline(\UIDB) & Timetable extraction pipeline (PDF tables, OCR, Excel/Word adapters); tuning on the college's real PDF (lab groups, legends, noon row, combined B.E.\ page); background worker; conflict detection; extraction and regression tests; performance and load measurements.\\
+\StudentC{}\newline(\UIDC) & Cross-platform app (React Native/Expo): role dashboards, weekly view, Ask screen, upload, review and admin screens; laptop/web support and Expo SDK upgrade; mobile and end-to-end tests; documentation, report and poster.\\
+\midrule
+\textbf{All members} & Requirements analysis and SRS, design reviews with the guide, testing on phones and laptops, demo preparation.\\
 \bottomrule
 \end{tabularx}
 \end{table}

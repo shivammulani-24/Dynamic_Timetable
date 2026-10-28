@@ -27,9 +27,22 @@ takes about **10 minutes**. The questions examiners usually ask are at the end, 
 | Principal | `principal@demo.college.edu` |
 | Admin | `admin@demo.college.edu` |
 
-**Roles in the group (suggested):** one person speaks, one person drives the laptop, one person
-holds the phone and shows the same thing on mobile, and one person handles the Q&A and points to
-the report and poster. Swap roles at each part so everyone speaks.
+**Roles in the group (3 members):**
+
+| Part | Speaks | Drives the laptop | Shows on phone |
+|---|---|---|---|
+| 0–1 Opening, real PDF | **Shivam** | Harshvarddhan | Gurshaan |
+| 2–3 Student home, timetable | **Harshvarddhan** (built the app) | Shivam | Gurshaan |
+| 4 Ask in plain English, "not ChatGPT" | **Shivam** (built the query engine) | Harshvarddhan | Gurshaan |
+| 5 HOD and conflicts | **Gurshaan** (built conflict detection) | Shivam | Harshvarddhan |
+| 6 Admin upload and extraction | **Gurshaan** (built the extraction) | Harshvarddhan | n/a |
+| 7–8 Archives, personal, promotion | **Harshvarddhan** | Gurshaan | n/a |
+| 9 Closing, numbers, architecture | **Shivam** | n/a | n/a |
+
+In Q&A, each person answers questions about their own module (see the report's Table 7.2):
+**Shivam**: architecture, database, security, query engine, deployment. **Gurshaan**: PDF/OCR
+extraction, conflicts, performance. **Harshvarddhan**: app screens, laptop/web version, testing,
+report and poster.
 
 ---
 
@@ -215,10 +228,9 @@ The submission folder is `report/86_Dynamic_Timetable_Monitoring_System/`:
 └── poster/              ← A3 poster (.pptx editable + .pdf)
 ```
 
-### Step 1: Fill in your details (2 minutes)
-Open `details.tex` and replace everything marked `TO FILL`: member names and UIDs, guide name and
-HOD name. If you have 3 members, delete the 4th member's lines in `frontmatter/title.tex`,
-`certificate.tex`, `approval.tex`, `declaration.tex` and `acknowledgement.tex`.
+### Step 1: Check your details (1 minute)
+Names, UIDs, guide (Prof. Anant Nimkar) and HOD (Dr. Sudhir Dhage) are already filled in, in
+`details.tex`. Change them there if anything is wrong: one edit updates every page.
 
 ### Step 2a: Compile on Overleaf (easiest, nothing to install)
 1. Zip the folder `86_Dynamic_Timetable_Monitoring_System` (right-click → *Send to → Compressed folder*).
@@ -243,7 +255,7 @@ HOD name. If you have 3 members, delete the 4th member's lines in `frontmatter/t
 1. A ready A3 PDF is in `poster/86_Dynamic_Timetable_Poster_A3.pdf`. To edit, open
    `poster/86_Dynamic_Timetable_Poster.pptx` in **PowerPoint** (the department template, filled in for our
    project; it uses Bookman Old Style, which comes with Windows/Office).
-2. Replace the member names, UIDs and guide name in the title box.
+2. Names and guide are already filled in; check the title box once.
 3. **File → Export → PDF**, or print with *Paper size* = **A3** and *Scale to fit paper*. The
    slide has the same proportions as A3 (ISO paper), so nothing is cut off.
 4. Don't change fonts or box formatting; the department note in the template asks for that.

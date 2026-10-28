@@ -1,7 +1,7 @@
 {
  "title": "Dynamic Timetable: A Role-Based Timetable Monitoring System with Automated Extraction and Natural-Language Queries",
- "names": "Shivam Mulani, Member 2 Name, Member 3 Name, Member 4 Name, B.Tech.(Comp.)",
- "guide": "Project Guide: Prof. Guide Name  |  Group No. 86",
+ "names": "Shivam Mulani, Gurshaan Nandrajog, Harshvarddhan Waghela, B.Tech.(Comp.)",
+ "guide": "Project Guide: Prof. Anant Nimkar  |  Group No. 86",
  "abstract_h": 4.15,
  "abstract": "College timetables are published as dense multi-page PDFs that everyone reads by hand. We built Dynamic Timetable, a role-based mobile and web system that extracts the official timetable automatically (PDF, scans, Excel, Word), flags uncertain entries, detects clashes and answers plain-English questions through a safe rule-based engine. On the college's real 10-page timetable, 452 of 453 classes were verified automatically, exactly 2 genuine clashes were found, and a search takes about 40 ms.",
  "left": [
