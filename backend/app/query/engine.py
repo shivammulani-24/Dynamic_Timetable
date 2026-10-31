@@ -23,7 +23,7 @@ from app.models import InstitutionConfig, SearchHistory
 from app.query import nlp, planner, templates as T
 from app.query.registry import INTENTS
 from app.query.vocab import Resolution, Vocab, load_vocab, resolve, scan
-from app.security.policy import SCOPE_FREE_INTENTS, institutional_scope, intent_allowed
+from app.security.policy import OPEN_VIEWING, SCOPE_FREE_INTENTS, institutional_scope, intent_allowed
 from app.security.principal import Principal
 from app.services.audit import request_id_var
 from app.services.context import Clock, SearchContext, parse_domain, resolve_context
@@ -341,13 +341,35 @@ def h_batch(r: Run) -> T.Result:
     return T.Result(items, meta={"weekly_view": True})
 
 
+_ALL_WORDS = re.compile(r"\b(all|every|each|other|whole|entire) (batches|divisions|years|sections|groups)\b"
+                        r"|\b(college|department)[- ]wide\b|\bwhole college\b|\beveryone\b")
+
+
+def own_by_default(r: Run, f: T.Filters) -> T.Filters:
+    """A student asking about a subject or a lab (no batch, teacher or room named) means their own
+    classes; naming a batch, or "all batches", shows everyone's."""
+    p = r.ctx.principal
+    if (r.ctx.domain == Domain.INSTITUTIONAL and RoleCode.STUDENT in p.roles and not (f.batch or f.professor or f.room)
+            and not _ALL_WORDS.search(r.parsed.norm)):
+        f.self_only = True
+    return f
+
+
 def h_course(r: Run) -> T.Result:
-    f = _filters(r, "course", "batch", "professor")
+    f = own_by_default(r, _filters(r, "course", "batch", "professor"))
     if not f.course:
         need_entity(r, "course")
     d = need_date(r, allow_weekday=False) if (r.parsed.dates or "date" in r.req.parameters) else None
     dow = None if d else (r.req.parameters.get("day_of_week") or r.parsed.weekday)
-    return T.qt05_find_by_course(_q(r), f, d, dow)
+    res = T.qt05_find_by_course(_q(r), f, d, dow)
+    if not res.items and f.self_only:
+        # Not in the student's own timetable: show everyone's instead of an empty answer, and say so.
+        f.self_only = False
+        res = T.qt05_find_by_course(_q(r), f, d, dow)
+        if res.items:
+            res.warnings.append({"code": "NOT_IN_YOUR_TIMETABLE",
+                                 "message": f"You don't have {f.course[0].display}; showing every batch's classes."})
+    return res
 
 
 def _time_range(r: Run) -> tuple[time, time]:
@@ -429,7 +451,8 @@ def _section_lunch_end(r: Run, d: date) -> time | None:
 
     q = _q(r)
     e = q.m.entry
-    sections = select(e.section_id).where(q.base().whereclause, q.on_date(d), e.section_id.is_not(None)).distinct()
+    own = q.apply(q.base(), T.Filters(self_only=True))      # the caller's own classes, not the whole college
+    sections = select(e.section_id).where(own.whereclause, q.on_date(d), e.section_id.is_not(None)).distinct()
     ends = set(r.db.scalars(select(e.end_time).where(
         e.timetable_id == r.ctx.timetable_id, e.entry_kind == "BREAK", e.section_id.in_(sections), q.on_date(d),
         e.time_uncertain.is_(False), e.end_time.is_not(None),
@@ -475,7 +498,7 @@ def h_free_check(r: Run) -> T.Result:
     # class details outside the caller's own scope are withheld.
     other_prof = bool(f.professor) and r.ctx.domain == Domain.INSTITUTIONAL
     res = T.qt04_filter_by_time(_q(r, scope_free=other_prof), d, t, end, f)
-    if other_prof and not institutional_scope(r.ctx.principal).college:
+    if other_prof and not OPEN_VIEWING and not institutional_scope(r.ctx.principal).college:
         visible = {i["entry_id"] for i in T.qt04_filter_by_time(_q(r), d, t, end, f).items}
         res.items = [i if i["entry_id"] in visible else {**_busy_only(i)} for i in res.items]
     uncertain = T.uncertain_overlapping(_q(r, scope_free=other_prof), d, t, f)
@@ -656,7 +679,10 @@ def _message(intent: str, res: T.Result, r: Run) -> str:
     if intent == "ROOM_FREE_NOW":
         it = res.items[0]
         return {"NO_SCHEDULED_CLASS": f"Room {it['room']} has no class scheduled at {it['time']} (scheduled use only, not physical occupancy).",
-                "SCHEDULED": f"Room {it['room']} has a class scheduled at {it['time']}.",
+                "SCHEDULED": f"Room {it['room']} has a class scheduled at {it['time']}" + (
+                    ": " + "; ".join(f"{x['course']}" + (f" ({x['professor']})" if x.get("professor") else "")
+                                     + (f", {x['batch']}" if x.get("batch") else "") for x in it["entries"][:3])
+                    if it.get("entries") else "") + ".",
                 "UNCERTAIN": f"Room {it['room']} can't be confirmed free — some classes there have unverified times."}[it["scheduled_status"]]
     if intent == "FIND_FREE_ROOMS":
         return f"{n} room(s) have no class scheduled at {m['time']} on {m['date']}." if n else "No rooms are confirmed free at that time."
@@ -814,7 +840,9 @@ def _search(db: Session, p: Principal, req: Request) -> tuple[int, dict]:
             if not intent_allowed(p, intent):
                 raise Halt(Code.ACCESS_DENIED, "Your role does not have access to this kind of monitoring query.")
             scope = institutional_scope(p)
-            if scope.is_empty and intent not in SCOPE_FREE_INTENTS:
+            named = (parsed.batch or parsed.professor or parsed.room or parsed.course or parsed.floor is not None
+                     or any(k in req.parameters for k in ("batch", "professor", "room", "course", "floor")))
+            if scope.is_empty and intent not in SCOPE_FREE_INTENTS and not (OPEN_VIEWING and named):
                 raise Clarify("SETUP_REQUIRED", scope.reason_if_empty or "Your account setup is incomplete.")
         if intent == planner.COMPOSED_INTENT:
             from app.query import composer
@@ -822,6 +850,9 @@ def _search(db: Session, p: Principal, req: Request) -> tuple[int, dict]:
             res = composer.run(r, plan)
         else:
             res = HANDLERS[intent](r)
+            if plan is not None and plan.room_type and res.result_type == "ROOMS":
+                res.items = [i for i in res.items if (i.get("room_type") or "").upper() == plan.room_type]
+                res.meta["room_type"] = plan.room_type
             if plan is not None and plan.count_of:
                 from app.query import composer
 

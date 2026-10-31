@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.enums import Domain, EntryKind, RoleCode, VerificationStatus
 from app.models import InstitutionConfig, Room
-from app.security.policy import institutional_scope
+from app.security.policy import OPEN_VIEWING, institutional_scope
 from app.services.context import SearchContext
 from app.services.domains import models_for
 from app.services.entries import scope_condition, serialize_entry
@@ -60,7 +60,7 @@ class Q:
         q = select(e).where(e.timetable_id == self.ctx.timetable_id, e.verification_status != VerificationStatus.REJECTED)
         if classes_only:
             q = q.where(e.entry_kind == EntryKind.CLASS)
-        if self.ctx.domain == Domain.INSTITUTIONAL and not self.scope_free:
+        if self.ctx.domain == Domain.INSTITUTIONAL and not self.scope_free and not OPEN_VIEWING:
             cond = scope_condition(institutional_scope(self.ctx.principal), self.ctx.timetable, e)
             if cond is not None:
                 q = q.where(cond)
@@ -114,8 +114,11 @@ class Q:
     def _self(self, q):
         """'my' in the institutional view: a professor's own classes; a student's batch (already the scope)."""
         p = self.ctx.principal
-        if self.ctx.domain == Domain.PERSONAL or RoleCode.STUDENT in p.roles:
+        if self.ctx.domain == Domain.PERSONAL:
             return q
+        if RoleCode.STUDENT in p.roles:      # own batch, its lab group and parent division
+            cond = scope_condition(institutional_scope(p), self.ctx.timetable, self.m.entry)
+            return q if cond is None else q.where(cond)
         if RoleCode.PROFESSOR in p.roles and p.staff_id:
             e = self.m.entry
             return q.where(e.staff_id == p.staff_id)

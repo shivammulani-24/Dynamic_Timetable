@@ -104,6 +104,9 @@ and say: *"LLC slots have no teacher or room in the PDF, so we show them without
 | `Which day is my busiest?` | Day-wise list, **Wednesday** on top | "Same engine: *per day* + *most classes*. It also tells you which days have no classes." |
 | `When is my last class on Friday?` | Last class and when you're done | "*last* + *Friday*. Try 'Which day do I finish earliest?' as well." |
 | `Do I have classes before 11 am on Tuesday?` | Classes starting before 11 | "A *before* time window. A bare '11' would make it ask a.m. or p.m." |
+| `When is lunch break on Monday?` / `When am I free on Thursday?` | Lunch 12:15–1:15 (TE) / free periods | "It reads *your* section's lunch row — SE gets 1:15–2:15." |
+| `Who teaches software engineering?` / `Which floor is room 606-5?` | Teacher names / floor 6 | |
+| `Any clashes?` | The 2 clashes | "Viewing is open to everyone — the timetable is public; only changes are Admin-only." |
 | `Compare my personal and college timetable` | Politely refused | "Personal and college data are deliberately kept separate, so this is not allowed." |
 
 > **Say (important, examiners like this):** "This is **not ChatGPT**. We don't send the question to
@@ -171,7 +174,7 @@ Wait for **Needs review** (about 10–60 s online), then open it:
 
 > **Say:** "To summarise: one React Native app for Android, iPhone and laptop; a FastAPI back end;
 > PostgreSQL; a background worker; an extraction pipeline with OCR; and a safe rule-based question
-> engine. It is backed by **174 automated back-end tests, 20 app tests and end-to-end browser tests
+> engine. It is backed by **178 automated back-end tests, 20 app tests and end-to-end browser tests
 > that all pass**. Measured search time is about **40–50 ms** for one user. With 4 server workers
 > on a laptop it handled about **60 searches per second** with **zero wrong answers at 32
 > simultaneous users**. It's deployed online for free. Next steps are a load test on real
@@ -197,6 +200,7 @@ Wait for **Needs review** (about 10–60 s online), then open it:
 | Question | Answer |
 |---|---|
 | **Is this ChatGPT / an AI model?** | No. It is a rule-based **compositional query planner**: the question becomes a typed plan (operation + filters + time) that the server compiles into parameterised SQL with your role scope. It is deterministic, reproducible and injection-safe, and it needs no paid API. |
+| **Can a student see other batches?** | Yes. The official timetable is public, so anyone can ask about any batch, teacher, room or clash. "My" still means your own batch and lab group, personal timetables stay private, and only the Admin can change data. |
 | **Are you limited to fixed questions?** | No longer. Earlier versions had 30 fixed question types; now pieces combine freely (count / first / last / busiest day / lab or lecture / before or after a time / this week). Specialised operations (free rooms, professor free time, archives) are reused where they need special logic. An LLM could be added later only to *suggest* a plan, never to touch the database. |
 | **How do you read the PDF?** | PyMuPDF gives text with coordinates and ruled tables (it keeps merged 2-hour lab cells). We find the time row, day rows and sections, split stacked lab batches, expand the page's legend and validate everything. Scanned pages and photos go through Tesseract OCR. |
 | **What if the PDF format changes?** | Each entry gets a status. Anything the parser isn't sure about becomes *Unverified* or *Incomplete* and goes to the Admin's review screen. The parser is versioned (`tt-grid-parser/1.2.0`) and has regression tests on the real PDF. |

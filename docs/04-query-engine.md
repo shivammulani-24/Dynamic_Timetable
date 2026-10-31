@@ -13,7 +13,8 @@ combines them:
 
 | Piece | Values |
 |---|---|
-| **operation** | `LIST`, `COUNT`, `EXISTS`, `TOTAL_HOURS`, `FIRST`, `LAST`, `NEXT`, `PER_DAY` — or a specialised operation (below) |
+| **operation** | `LIST`, `COUNT`, `EXISTS`, `TOTAL_HOURS`, `FIRST`, `LAST`, `NEXT`, `PER_DAY`, `SPAN` (how long my day is), `FREE_SLOTS`, `BREAKS` (lunch), `AFTER_COURSE` / `BEFORE_COURSE`, `TEACHERS` (who teaches a subject), `PER_ROOM` (room usage), `ROOM_INFO` (floor, building, seats), `CONFLICTS` — or a specialised operation (below) |
+| **count of** | classes (default), subjects, electives, batches, rooms |
 | **filters** | me (default), batch, professor, room, course, floor; **kind** = `LAB` / `LECTURE` |
 | **when** | a date (today, tomorrow, 12 Nov …), a weekday (recurring), this/next week, or the whole weekly timetable |
 | **window** | `AT`, `AFTER`, `BEFORE`, `BETWEEN` a time, `AFTER_LUNCH` (from the caller's own section) |
@@ -35,6 +36,21 @@ Examples (all answered from the real college timetable):
 | What is my next lab? | `NEXT`, kind `LAB` |
 | How many subjects do I have? | `COUNT` of distinct courses |
 | How many professors teach my batch? / free rooms on floor 5 at 10 am? | `COUNT` over a specialised operation |
+| When is lunch? / Any break between 11 and 12 on Monday? | `BREAKS` (the caller's own section's breaks) |
+| When am I free on Thursday? / my free periods | `FREE_SLOTS` (professors: within working hours) |
+| How long is my day on Thursday? / college timings on Friday | `SPAN` |
+| What comes after Software Engineering on Monday? | `AFTER_COURSE` |
+| Who teaches CNS? | `TEACHERS` |
+| Which floor is room 606-5? / Where is room 508? | `ROOM_INFO` |
+| Busiest room / least used rooms | `PER_ROOM` |
+| Any clashes? | `CONFLICTS` (open to everyone) |
+| What electives do I have? / Which rooms do I teach in? / my MDM classes | `COUNT` of electives / rooms; MDM = a subject family code |
+| Free labs at 10 am on Tuesday | free rooms filtered to `LAB` rooms |
+
+**Viewing is open.** Any signed-in user may ask about any batch, teacher, room, floor or clash in the
+official timetable. "My / me / we / our" means the caller's own classes (a student's batch, lab group
+and division; a professor's own classes). A student asking about a subject they don't have ("Find all
+DBMS classes" as a TE student) is shown every batch's classes with a note.
 
 **Specialised operations.** Questions that need dedicated logic keep their proven operations
 (the former intents Q01–Q30): next/current class, after lunch, am I free, free rooms, room status,

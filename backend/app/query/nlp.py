@@ -184,7 +184,11 @@ _PROF = re.compile(
 )
 _PROF_AFTER = re.compile(r"\b(?P<name>[a-z][a-z.]{2,})\s+(?:sir|madam|ma'am|mam|maam|miss)\b")
 _NOT_A_NAME = {"the", "our", "my", "your", "which", "what", "where", "when", "is", "are", "does", "do", "has", "have",
-               "any", "this", "that", "with", "for", "and", "class", "lecture", "lab", "free", "now", "today"}
+               "any", "this", "that", "with", "for", "and", "class", "lecture", "lab", "free", "now", "today", "in", "at",
+               "on", "of", "to", "who", "will", "was", "teaching", "taking"}
+_NOT_A_BATCH = {"details", "time", "schedule", "is", "on", "at", "now", "in", "of", "for", "the", "a", "an", "to", "after",
+                "before", "today", "tomorrow", "with", "by", "from", "and", "or", "this", "next", "starts", "start", "ends",
+                "end", "timings", "timing", "room", "lab", "teacher", "where", "which", "what", "when"}
 _ROOM = re.compile(r"\b(?:room|rm|classroom|lab|hall|cabin)\s*(?:no\.?|number|#)?\s*(?P<room>[a-z]?-?\d{2,4}(?:\s*-\s*[a-z0-9]{1,3}|[a-z])?(?:\s+old)?)\b")
 _BARE_ROOM = re.compile(r"\b(?P<room>[a-z]{1,2}-\d{2,4}[a-z]?)\b")
 _FLOOR = re.compile(r"\b(?:(?P<w>ground|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|\d{1,2}(?:st|nd|rd|th)?)\s+floor"
@@ -203,10 +207,9 @@ def parse(text: str, today: date) -> Parsed:
     p.after = bool(re.search(r"\b(after|post|later than|past)\s+(\d|noon)", t))
     p.after_lunch = bool(re.search(r"\b(after|post)[- ]?lunch\b", t))
     m = _PROF.search(t)
-    if m:
-        name = re.sub(r"\b(schedule|timetable)\b", "", m.group("name")).strip(" .")
-        if name and name not in ("free", "now"):
-            p.professor = name
+    name = re.sub(r"\b(schedule|timetable)\b", "", m.group("name")).strip(" .") if m else ""
+    if name and name not in ("free", "now") and name.split()[0] not in _NOT_A_NAME:
+        p.professor = name
     else:
         m = _PROF_AFTER.search(t)              # "nimkar sir", "pande ma'am"
         if m and m.group("name").strip(".") not in _NOT_A_NAME:
@@ -221,7 +224,7 @@ def parse(text: str, today: date) -> Parsed:
         num = re.match(r"\d+", raw)
         p.floor = int(num.group(0)) if num else WORD_NUM.get(raw)
     m = _BATCH.search(t)
-    if m and not re.match(r"(details|time|schedule|is|on|at|now)$", m.group("batch")):
+    if m and m.group("batch").split()[0] not in _NOT_A_BATCH:
         p.batch = m.group("batch").strip()
     p.archive_modifier = bool(re.search(r"\b(this|selected|current|that|the)\s+(archive|archived timetable|archived|old timetable|selected timetable)\b"
                                         r"|\barchived timetable\b|\bin (the|this) archive\b", t))
@@ -278,8 +281,8 @@ def classify(p: Parsed, *, has_professor: bool, has_room: bool, has_batch: bool,
     if rooms_word and (p.after or re.search(r"\b(have|with) (classes|lectures)\b", t)):
         return "ROOMS_WITH_CLASSES_AFTER_TIME"
     if has_room:
-        if free_word:
-            return "ROOM_FREE_NOW"
+        if free_word or (p.times and not p.time_is_range):
+            return "ROOM_FREE_NOW"            # "which subject is in 002 at 1:15 pm" → status + the class there
         if p.weekday or p.dates:
             return "ROOM_SCHEDULE_FOR_DAY"
         return "ROOM_SCHEDULE"
@@ -297,7 +300,7 @@ def classify(p: Parsed, *, has_professor: bool, has_room: bool, has_batch: bool,
         return "CLASSES_AFTER_TIME"
     if p.detail_request and re.search(r"\b(class|lecture|lab|entry|session)\b", t):
         return "SHOW_CLASS_DETAILS"
-    if p.now and re.search(r"\b(class|lecture|lab|period|session|happening|going on)\b", t) and not p.times:
+    if p.now and re.search(r"\b(class|lecture|lab|period|session|happening|going on|have|having|attend|doing)\b", t) and not p.times:
         return "CURRENT_CLASS"
     if p.time_is_range:
         return "FILTER_CLASSES_BY_TIME"

@@ -24,7 +24,7 @@ React Native (Expo SDK 58, TypeScript strict)  ──HTTPS──▶  FastAPI (Py
 |---|---|
 | `backend/app/` | FastAPI app: `api/v1` routers, `security` (auth, RBAC policy), `services`, `extraction`, `query`, `worker.py`, `seed.py` (synthetic demo), `seed_college.py` (the college's real PDF) |
 | `backend/alembic/` | Database migrations (`0001` schema, `0002` reference data, `0003` time-uncertainty flag) |
-| `backend/tests/` | 174 pytest tests (auth, extraction spec PDF-01…16, real college PDF regression + end-to-end on it, domains/isolation, specialised operations Q01–Q30, composed query plans Q31, academics, concurrency) |
+| `backend/tests/` | 178 pytest tests (auth, extraction spec PDF-01…16, real college PDF regression + end-to-end on it, domains/isolation, specialised operations Q01–Q30, composed query plans Q31, academics, concurrency) |
 | `mobile/src/app/` | Expo Router screens (auth, role tabs, search, timetable, archives, upload, review, admin) |
 | `mobile/src/{api,state,components,theme,lib}` | Typed API client, auth/domain state, design system, helpers |
 | `mobile/__tests__/`, `mobile/e2e/` | Jest unit/component tests; Playwright end-to-end runs against the real API (synthetic demo + real college timetable) |
@@ -103,7 +103,7 @@ port 8000 on the same machine (`mobile/src/lib/config.ts`). Run the API on `0.0.
 ## Tests (results from the latest run)
 
 ```bash
-cd backend && .venv/bin/python -m pytest -q          # 174 passed
+cd backend && .venv/bin/python -m pytest -q          # 178 passed
 cd mobile  && npx tsc --noEmit && npx jest            # typecheck clean · 20 passed
 cd mobile  && npm run test:e2e -- http://localhost:8081 ./e2e-screens            # 21/21 (after `seed`)
 cd mobile  && npm run test:e2e:college -- http://localhost:8081 ./e2e-college    # 24/24 (after `seed-college`)

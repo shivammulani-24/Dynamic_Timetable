@@ -52,12 +52,13 @@ def institutional_scope(p: Principal) -> EntryScope:
     )
 
 
-# Intents (institutional domain) restricted beyond "any authenticated role with entry scope".
-_MONITORING = frozenset({RoleCode.HOD, RoleCode.PRINCIPAL, RoleCode.ADMIN})
-INTENT_ROLE_RESTRICTIONS: dict[str, frozenset[RoleCode]] = {
-    "FLOOR_ACTIVITY": _MONITORING,
-    "ROOMS_WITH_CLASSES_AFTER_TIME": _MONITORING,
-}
+# Viewing the official (institutional) timetable is open to every signed-in user: anyone may ask about
+# any batch, teacher, room, floor or clash, as the published PDF is open to all. `institutional_scope`
+# now only says what "my / me" means (a student's own batch and lab group, a professor's own classes);
+# it no longer hides other entries. Personal timetables stay private to their owner, and every action
+# that changes data (upload, review, activation, promotion, master data) stays Admin-only.
+OPEN_VIEWING = True
+INTENT_ROLE_RESTRICTIONS: dict[str, frozenset[RoleCode]] = {}
 
 # Evaluated against the whole selected institutional timetable regardless of batch/department scope:
 # * room intents describe facilities, not people;

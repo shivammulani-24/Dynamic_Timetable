@@ -265,6 +265,8 @@ def resolve(kind: str, mention: str, vocab: Vocab, *, choice_key: str | None = N
             return Resolution(whole, [])
         if len(whole) > 1 and kind == "course" and len({course_base(c.display) for c in whole}) == 1:
             return Resolution(whole, [])          # one subject, several session types (theory + lab)
+        if len(whole) > 1 and kind == "course" and len(words) == 1 and len(words[0]) <= 5:
+            return Resolution(whole, [])          # a short family code ("MDM", "PE"): all of them
         if len(whole) > 1:
             return Resolution([], whole[:8])
     if r.suggestions:
@@ -345,6 +347,18 @@ def _scan_course(tokens: list[str], used: list[bool], vocab: Vocab, found: dict[
         ws = [normalize_label(t) for t in span]
         return {b for b, words in bases.items() if all(any(_word_eq(w, x) for x in words) for w in ws)}
 
+    codes: dict[str, set[str]] = {}
+    for c in vocab.courses:
+        for a in [c.display, *c.extra.get("aliases", [])]:
+            first = _words(a)[:1]
+            if first and 3 <= len(first[0]) <= 5:
+                codes.setdefault(first[0], set()).add(course_base(c.display))
+    for i, tok in enumerate(tokens):            # a short subject code: "mdm" → MDM-II(IOT), MDM-II(DSA) …
+        w = normalize_label(tok)
+        if not used[i] and w in codes and w not in NAME_STOPWORDS and w not in {"lab", "labs", "the", "and"}:
+            found["course"] = tok
+            used[i] = True
+            return
     for n in (4, 3, 2, 1):
         for i in range(0, len(tokens) - n + 1):
             span = tokens[i:i + n]

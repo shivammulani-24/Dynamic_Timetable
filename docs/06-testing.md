@@ -29,7 +29,7 @@ python scripts/load_smoke.py http://localhost:8000 24 15
 
 | Suite | Result |
 |---|---|
-| Backend pytest | **174 passed** (≈45 s) |
+| Backend pytest | **178 passed** (≈45 s) |
 | Mobile TypeScript (`strict`, `noUnusedLocals`) | clean |
 | Mobile Jest | **20 passed** |
 | Expo export Android + iOS (Hermes bytecode) | both bundles compiled (5.6 MB / 5.4 MB) |

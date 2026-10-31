@@ -122,7 +122,9 @@ The query engine does not match a whole question to one of a fixed list of quest
 (me, batch, professor, room, course; lab or lecture), \emph{when} (a date, a weekday, this/next week
 or the whole weekly timetable), a \emph{time window} (at, after, before, between, after lunch) and,
 for day-wise questions, a \emph{metric and sort} (most/least classes or hours, earliest/latest start
-or finish). For example, ``Which day do I finish earliest?'' becomes
+or finish). Further operations answer everyday shapes directly: \textsc{Span} (how long my day is),
+\textsc{Free\_Slots}, \textsc{Breaks} (lunch), \textsc{After/Before\_Course}, \textsc{Teachers} (who teaches
+a subject), \textsc{Per\_Room} (room usage), \textsc{Room\_Info} and \textsc{Conflicts}. For example, ``Which day do I finish earliest?'' becomes
 \texttt{\{operation: PER\_DAY, metric: LAST\_END, sort: EARLIEST\}} and ``How many labs do I have
 this week?'' becomes \texttt{\{operation: COUNT, kind: LAB, when: \{week: this\}\}}.
 Questions that need dedicated logic (free rooms, a professor's free time or scheduled location,

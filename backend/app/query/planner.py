@@ -26,10 +26,11 @@ from app.query.nlp import Parsed
 
 # ------------------------------------------------------------------ closed vocabularies
 
-OPERATIONS = ("LIST", "COUNT", "EXISTS", "TOTAL_HOURS", "FIRST", "LAST", "NEXT", "PER_DAY")
+OPERATIONS = ("LIST", "COUNT", "EXISTS", "TOTAL_HOURS", "FIRST", "LAST", "NEXT", "PER_DAY", "SPAN", "FREE_SLOTS",
+              "BREAKS", "AFTER_COURSE", "BEFORE_COURSE", "TEACHERS", "PER_ROOM", "ROOM_INFO", "CONFLICTS")
 KINDS = ("LAB", "LECTURE")
 SORTS = ("MOST", "LEAST", "EARLIEST", "LATEST")
-WINDOWS = ("AT", "AFTER", "BEFORE", "BETWEEN", "AFTER_LUNCH")
+WINDOWS = ("AT", "AFTER", "BEFORE", "BETWEEN", "AFTER_LUNCH", "NOW")
 COMPOSED_INTENT = "COMPOSED_QUERY"
 
 # Whole-question rules that always keep their own operation (archives, primary, "how long until").
@@ -52,13 +53,18 @@ _COUNT = re.compile(r"\bhow many\b|\bnumber of\b|\bno\.? of\b|\bcount\b")
 _HOURS = re.compile(r"\b(how many|total|number of|no\.? of)\s+(hours|hrs|hour)\b|\btotal\s+(time|duration|teaching time)\b"
                     r"|\bhours of (class|classes|lectures?|labs?|teaching)\b")
 _FIRST = re.compile(r"\b(first|earliest)\b(?!\s+(floor|year|sem|semester|half|week))|\bwhen (do|does|will) (i|we|my|our|college|the day|the college)\b.*\b(start|begin)s?\b"
-                    r"|\bwhat time (do|does|will) .*\b(start|begin)s?\b|\b(start|begin)s? (my|our|the) day\b")
+                    r"|\bwhat time (do|does|will) .*\b(start|begin)s?\b|\b(start|begin)s? (my|our|the) day\b"
+                    r"|\bwhat time (do|should|must|will) (i|we) (reach|arrive|come|get to|leave for)\b"
+                    r"|\bwhen (do|should|must) (i|we) (reach|arrive|come to)\b")
 _LAST = re.compile(r"\b(last|latest|final)\b(?!\s+(week|weekend|year|month|semester|sem|timetables?|archives?|version|uploads?|floor))"
                    r"|\b(finish|finishes|finished|done for the day|wrap up|go home|leave college|leave for home|get out)\b"
                    r"|\b(day|college|classes|lectures)\s+(ends?|over|get over|gets over|finish(es)?)\b"
-                   r"|\bwhen (do|does|will) .*\bend\b|\bwhat time (do|does|will) .*\bend\b")
+                   r"|\bwhen (do|does|will) .*\bend\b|\bwhat time (do|does|will) .*\bend\b"
+                   r"|\bwhen (do|will|can|would) (i|we) (get|be) free\b(?!.*\b(at|after|before|between)\b)"
+                   r"|\bwhen can (i|we) (go|leave)\b")
 _PER_DAY = re.compile(r"\bwhich day\b|\bwhat day\b|\bwhich days\b|\bbusiest\b|\blightest\b|\bfreest\b|\bleast busy\b|\bmost busy\b"
-                      r"|\bper day\b|\beach day\b|\bevery day\b|\bday[- ]?wise\b|\bdaily (count|summary|load)\b")
+                      r"|\bper day\b|\beach day\b|\bevery day\b|\bday[- ]?wise\b|\bdaily (count|summary|load)\b"
+                      r"|\b(longest|shortest|heaviest|easiest|hardest)\s+day\b")
 _MOST = re.compile(r"\b(most|maximum|max|busiest|heaviest|longest|most busy)\b")
 _LEAST = re.compile(r"\b(least|fewest|minimum|min|lightest|freest|shortest|least busy)\b")
 _EXISTS = re.compile(r"\b(do|does|will) (i|we|he|she|they|prof\w*|dr\w*|\w+) (have|has|get|take|takes)\b.*\bany\b|\bis there any\b|\bare there any\b"
@@ -73,6 +79,26 @@ _SUBJ_COURSE = re.compile(r"\b(subjects?|courses?|papers?)\b")
 _SUBJ_ROOM = re.compile(r"\b(rooms|classrooms|halls)\b")
 _SUBJ_BATCH = re.compile(r"\b(batches|divisions|groups) (do|does|will|did) (i|we|he|she|they|prof\w*|dr\w*|\w+) (teach|take|handle)\b"
                          r"|\b(which|what|how many) (batches|divisions)\b|\bwho do (i|we) teach\b|\bwhom do (i|we) teach\b")
+_CONFLICTS = re.compile(r"\b(clash|clashes|clashing|conflicts?|double[- ]?booked)\b")
+_ROOM_INFO = re.compile(r"\b(which|what) floor\b|\bwhere is\b|\bwhere's\b|\blocation of\b|\bcapacity\b|\bhow (big|many seats)\b")
+_PER_ROOM = re.compile(r"\b(busiest|most used|least used|most busy|least busy|emptiest|freest)\s+(room|rooms|classroom|classrooms|lab|labs)\b"
+                       r"|\bwhich (room|rooms|classroom|lab)\b.*\b(used|occupied|booked|busy)\b.*\b(most|least)\b|\broom usage\b"
+                       r"|\b(rooms|labs) (used|occupied) (the )?(most|least)\b")
+_BREAKS = re.compile(r"\b(lunch|break|breaks|recess|short break|long break)\b")
+_NOT_BREAK_Q = re.compile(r"\b(after|post|before)[- ]?(the )?(lunch|break)\b")
+_FREE_SLOTS = re.compile(r"\bfree (period|periods|slot|slots|lecture|lectures|hour|hours|time|lectures)\b|\bwhen (am|are) (i|we) free\b"
+                         r"|\b(gap|gaps)\b|\bno class\b.*\bwhen\b|\bwhen\b.*\bno class\b")
+_SPAN = re.compile(r"\bhow long is (my|the|our) (day|college|schedule)\b|\bhow (long|many hours) (am i|do i stay|do we stay|do i spend|do we spend|will i be|are we)\b"
+                   r"|\bcollege timings?\b|\b(day|college) (timings?|span|hours)\b|\bfrom what time to what time\b|\bmy day\b.*\bstart.*\bend\b")
+_AFTER_COURSE = re.compile(r"\b(after|following)\s+(?!lunch\b|break\b|\d|noon\b)")
+_BEFORE_COURSE = re.compile(r"\bbefore\s+(?!lunch\b|break\b|\d|noon\b)")
+_SEQ_Q = re.compile(r"\b(what|which|whats|what's)\b|\bcomes?\b|\bnext\b")
+_TEACHERS = re.compile(r"\bwho\b.*\b(teach|teaches|teaching|takes|take|taking|handles|handle|conducts?)\b|\bteachers? (of|for)\b"
+                       r"|\bwho is the (teacher|professor|faculty|prof)\b|\b(teacher|professor|faculty) (of|for)\b")
+_UNIT_ROOMS = re.compile(r"\b(which|what|list|my|how many) (rooms|classrooms)\b.*\b(do|does|will) (i|we)\b|\brooms (i|we) (teach|have|use|go)\b")
+_UNIT_SUBJECTS = re.compile(r"\b(which|what|list|show|all|my) (subjects|courses|papers)\b")
+_ELECTIVES = re.compile(r"\b(electives?|optional subjects?|minors?|honou?rs)\b")
+_TEACH_SELF = re.compile(r"\b(teach|teaching|take|taking|handle|handling)\b")
 _NEXT = re.compile(r"\bnext\s+(lab|labs|practical|lecture|theory)\b|\bupcoming\s+(lab|practical|lecture)\b")
 
 
@@ -85,12 +111,15 @@ class QueryPlan:
     sort: str | None = None             # MOST | LEAST | EARLIEST | LATEST
     metric: str | None = None           # for PER_DAY: CLASSES | FIRST_START | LAST_END | HOURS
     count_of: str | None = None         # COUNT over a specialised operation's results
-    unit: str | None = None             # what COUNT counts: CLASSES (default), COURSES or BATCHES
+    unit: str | None = None             # what COUNT counts: CLASSES (default), COURSES, BATCHES or ROOMS
+    electives: bool = False             # COURSES restricted to electives / MDM / PE / OE
+    self_also: bool = False             # "when do I teach SE-A": my own classes AND the named filter
+    room_type: str | None = None        # free-room questions about labs / classrooms only
     filters: dict = field(default_factory=dict)   # names mentioned (typed later against the timetable)
     when: dict = field(default_factory=dict)      # date / weekday / week as understood from the text
 
     def as_dict(self) -> dict:
-        return {k: v for k, v in asdict(self).items() if v not in (None, {}, [])}
+        return {k: v for k, v in asdict(self).items() if v not in (None, {}, [], False) or k == "composed"}
 
 
 def _when(p: Parsed) -> dict:
@@ -121,7 +150,7 @@ def _window(p: Parsed, t: str) -> str | None:
     if p.after_lunch:
         return "AFTER_LUNCH"
     if not p.times:
-        return None
+        return "NOW" if p.now else None
     if p.time_is_range:
         return "BETWEEN"
     if _BEFORE.search(t):
@@ -144,8 +173,12 @@ def build_plan(p: Parsed, specialised: str | None) -> QueryPlan:
     kind = "LAB" if _LAB.search(t) else ("LECTURE" if _LECTURE.search(t) else None)
     window = _window(p, t)
     base = dict(kind=kind, window=window, filters=_filters(p), when=_when(p))
+    base["self_also"] = bool(p.self_ref and _TEACH_SELF.search(t) and (p.batch or p.course) and not p.professor)
     if _SUBJ_BATCH.search(t) and (p.self_ref or p.professor):
         return QueryPlan(operation="COUNT", composed=True, unit="BATCHES", **base)
+    shaped = _shape(p, t, specialised, base)
+    if shaped is not None:
+        return shaped
 
     op: str | None = None
     sort = metric = None
@@ -171,7 +204,7 @@ def build_plan(p: Parsed, specialised: str | None) -> QueryPlan:
             else:
                 sort = "EARLIEST" if metric == "FIRST_START" else "LATEST"
         else:
-            metric = "HOURS" if op == "TOTAL_HOURS" else "CLASSES"
+            metric = "HOURS" if op == "TOTAL_HOURS" or re.search(r"\b(longest|shortest)\b", t) else "CLASSES"
             sort = "LEAST" if _LEAST.search(t) else ("MOST" if _MOST.search(t) else None)
         op = "PER_DAY"
     elif op is None:
@@ -196,9 +229,17 @@ def build_plan(p: Parsed, specialised: str | None) -> QueryPlan:
             return QueryPlan(operation="COUNT", composed=True, unit="COURSES", **base)
         elif _SUBJ_ROOM.search(t) and re.search(r"\b(free|available|empty|vacant)\b", t):
             specialised = "FIND_FREE_ROOMS"
+    if specialised in ROOM_SPECIALISED:
+        if re.search(r"\b(labs?|laborator(y|ies))\b", t):
+            base["room_type"] = "LAB"
+        elif re.search(r"\bclassrooms?\b", t):
+            base["room_type"] = "CLASSROOM"
+        base["kind"] = None                 # "free labs" is about rooms, not lab sessions
     # Counting what a specialised operation returns (rooms, professors, courses, free slots).
     if op == "COUNT" and specialised in COUNTABLE_SPECIALISED and (not kind or specialised in ROOM_SPECIALISED):
         return QueryPlan(operation="COUNT", composed=False, count_of=specialised, **base)
+    if op is None and base["self_also"] and specialised in ("SHOW_BATCH_TIMETABLE", "FIND_COURSE_CLASSES"):
+        op = "LIST"                          # "when do I teach SE-A": my classes for that batch
     if op is None:
         if kind is None and window != "BEFORE":
             return QueryPlan(operation=specialised or "UNKNOWN", composed=False, **base)
@@ -206,3 +247,36 @@ def build_plan(p: Parsed, specialised: str | None) -> QueryPlan:
             return QueryPlan(operation=specialised, composed=False, **base)
         op = "NEXT" if specialised in ("NEXT_CLASS", "TIME_UNTIL_NEXT_CLASS") else "LIST"
     return QueryPlan(operation=op, composed=True, sort=sort, metric=metric, **base)
+
+
+def _shape(p: Parsed, t: str, specialised: str | None, base: dict) -> QueryPlan | None:
+    """Question shapes with their own operation (conflicts, room details, breaks, free periods …)."""
+    timeless = not (p.times or p.weekday or p.dates or p.week_ref or p.now)
+    if _CONFLICTS.search(t):
+        return QueryPlan(operation="CONFLICTS", composed=True, **base)
+    if p.room and not p.times and timeless and _ROOM_INFO.search(t):
+        return QueryPlan(operation="ROOM_INFO", composed=True, **base)
+    if _PER_ROOM.search(t):
+        least = re.search(r"\b(least|emptiest|freest)\b", t)
+        return QueryPlan(operation="PER_ROOM", composed=True, sort="LEAST" if least else "MOST", **{**base, "kind": None})
+    if _BREAKS.search(t) and not _NOT_BREAK_Q.search(t) and not p.after_lunch:
+        return QueryPlan(operation="BREAKS", composed=True, **{**base, "kind": None})
+    if (_FREE_SLOTS.search(t) and not p.professor and not p.times and not _SUBJ_ROOM.search(t)
+            and not re.search(r"\b(labs|rooms)\b", t)):
+        return QueryPlan(operation="FREE_SLOTS", composed=True, **base)
+    if _SPAN.search(t):
+        return QueryPlan(operation="SPAN", composed=True, **base)
+    if p.course and _SEQ_Q.search(t):
+        if _AFTER_COURSE.search(t):
+            return QueryPlan(operation="AFTER_COURSE", composed=True, **base)
+        if _BEFORE_COURSE.search(t):
+            return QueryPlan(operation="BEFORE_COURSE", composed=True, **base)
+    if p.course and _TEACHERS.search(t) and not p.batch and not p.professor:
+        return QueryPlan(operation="TEACHERS", composed=True, **base)
+    if _UNIT_ROOMS.search(t):
+        return QueryPlan(operation="COUNT", composed=True, unit="ROOMS", **base)
+    if _ELECTIVES.search(t) and not p.course and re.search(r"\b(which|what|list|show|my|how many|do i|all)\b", t):
+        return QueryPlan(operation="COUNT", composed=True, unit="COURSES", electives=True, **base)
+    if _UNIT_SUBJECTS.search(t) and not p.professor and not _COUNT.search(t):
+        return QueryPlan(operation="COUNT", composed=True, unit="COURSES", **base)
+    return None

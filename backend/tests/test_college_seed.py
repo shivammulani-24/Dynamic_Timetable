@@ -185,13 +185,13 @@ def test_composed_busiest_day_is_sorted(client):
     assert fin["meta"]["plan"]["metric"] == "LAST_END" and ends == sorted(ends)
 
 
-def test_composed_lab_filter_keeps_the_lab_group_scope(client):
+def test_composed_lab_filter_my_labs_vs_another_batch(client):
     j = ask(client, "student.se.a1", "Show my labs")
     assert j["intent"] == "COMPOSED_QUERY" and j["results"]
     assert all("lab" in f"{e['course']} {e['course_code']}".lower() for e in j["results"])
     assert not any(e["batch"] in ("SE-A2", "SE-A3", "SE-A4", "SE-B1", "SE-C1") for e in j["results"])
-    other = ask(client, "student.se.a1", "Show SE-B labs on Monday", ok=False)
-    assert not any((e.get("batch") or "").startswith("SE-B") for e in other.get("results", []))
+    other = ask(client, "student.se.a1", "Show SE-B labs on Monday")       # viewing other batches is open
+    assert other["results"] and all((e.get("batch") or "").startswith("SE-B") for e in other["results"])
 
 
 def test_composed_exists_and_counting_other_things(client):
@@ -281,3 +281,60 @@ def test_we_us_our_mean_me_and_professor_questions_by_day_or_batch(client):
     taught = ask(client, "kkd", "Which batches do I teach?")
     agg = taught["results"][0]
     assert taught["result_type"] == "AGGREGATE" and agg["unit"] == "batches" and "SE-A" in agg["labels"]
+
+
+# ---------------------------------------------------------------- open viewing and everyday question shapes
+
+def test_viewing_is_open_but_my_still_means_mine(client):
+    se_b = ask(client, "student.se.a1", "Show SE-B timetable on Monday")
+    assert se_b["results"] and {x["batch"] for x in se_b["results"]} <= {"SE-B", "SE-B1", "SE-B2", "SE-B3", "SE-B4"}
+    floor = ask(client, "student.se.a1", "What is happening on the 5th floor at 10 am on Monday?")
+    assert floor["intent"] == "FLOOR_ACTIVITY" and floor["status"] in ("OK", "DATA_UNVERIFIED")
+    clashes = ask(client, "student.se.a1", "Any clashes in the timetable?")
+    assert clashes["result_type"] == "AGGREGATE" and clashes["results"][0]["value"] == 2
+    mine = ask(client, "student.se.a1", "What are my classes on Wednesday?")
+    assert not any(x["batch"] in ("SE-A2", "SE-B") for x in mine["results"])   # own lab group + division only
+    full = ask(client, "student.se.a1", "Show Nimkar's schedule")
+    assert len(full["results"]) > 3                                           # his whole schedule, not just SE-A's
+
+
+def test_breaks_free_periods_and_day_span(client):
+    lunch = ask(client, "student.te.b4", "When is lunch break on Monday?")
+    assert lunch["intent"] == "COMPOSED_QUERY" and "12:15 PM–1:15 PM" in lunch["message"]
+    se = ask(client, "student.se.a1", "When is lunch break on Monday?")
+    assert "1:15 PM–2:15 PM" in se["message"]                                   # each year's own lunch
+    free = ask(client, "student.te.b4", "When am I free on Thursday?")
+    assert free["result_type"] == "FREE_INTERVALS" and free["results"]
+    day = ask(client, "student.te.b4", "How long is my day on Thursday?")
+    assert day["result_type"] == "DAY_SUMMARY" and day["results"][0]["first_start"] < day["results"][0]["last_end"]
+    prof = ask(client, "kkd", "My free slots on Tuesday")
+    assert prof["result_type"] == "FREE_INTERVALS" and prof["meta"].get("working_hours")
+
+
+def test_teachers_neighbours_rooms_and_subjects(client):
+    who = ask(client, "student.te.b4", "Who teaches software engineering?")
+    assert who["result_type"] == "PROFESSORS" and "Reeta Koshy" in who["message"]
+    after = ask(client, "student.te.b4", "What comes after software engineering on Monday?")
+    assert after["results"] and all(x["start_time"] >= "14:15" for x in after["results"])
+    room = ask(client, "student.te.b4", "Which floor is room 606-5?")
+    assert room["result_type"] == "ROOMS" and "floor 6" in room["message"]
+    used = ask(client, "admin", "Which room is used the most?")
+    hours = [r["hours"] for r in used["results"]]
+    assert used["result_type"] == "ROOMS" and hours == sorted(hours, reverse=True)
+    labs = ask(client, "student.te.b4", "Free labs at 10 am on Tuesday")
+    assert labs["results"] and all(r["room_type"] == "LAB" for r in labs["results"])
+    mdm = ask(client, "student.te.b4", "my MDM classes")
+    assert mdm["results"] and all("MDM" in f"{x['course']} {x['course_code']}".upper() for x in mdm["results"])
+    rooms = ask(client, "kkd", "Which rooms do I teach in?")
+    assert rooms["results"][0]["unit"] == "rooms" and "508" in rooms["results"][0]["labels"]
+    other = ask(client, "student.te.b4", "Find all DBMS classes")              # not in TE: everyone's, with a note
+    assert other["results"] and any(w["code"] == "NOT_IN_YOUR_TIMETABLE" for w in other["warnings"])
+
+
+def test_parser_no_longer_reads_little_words_as_names(client):
+    j = ask(client, "student.te.b4", "Which room is my next class in?")
+    assert j["intent"] == "NEXT_CLASS" and j["results"]
+    k = ask(client, "student.te.b4", "Do I have class at 2:15 pm on Monday?")
+    assert k["intent"] == "CHECK_SCHEDULE_FREE" and k["results"][0]["schedule_status"] == "SCHEDULED"
+    now = ask(client, "student.se.a1", "What do I have now?", ok=False)
+    assert now["intent"] == "CURRENT_CLASS"

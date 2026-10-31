@@ -59,21 +59,25 @@ reconciled against this file.
 | Read own profile/preferences | ✔ | ✔ | ✔ | ✔ | ✔ |
 | Personal timetable upload/list/primary (own only) | ✔ | ✔ | ✔ | ✔ | ✔ |
 | Read another user's personal timetable | ✖ | ✖ | ✖ | ✖ | ✖ (no app permission) |
-| View institutional archives & entries | ✔ (batch scope) | ✔ (department scope + own) | ✔ (department) | ✔ (college) | ✔ (college) |
+| View institutional archives & entries (ask any question about any batch, teacher, room) | ✔ (college) | ✔ (college) | ✔ (college) | ✔ (college) | ✔ (college) |
 | Institutional upload / review / correction | ✖ | ✖ | ✖ | ✖ | ✔ |
 | Set institutional default (activation) | ✖ | ✖ | ✖ | ✖ | ✔ |
-| Conflict overview | ✖ | ✖ | ✔ (department) | ✔ | ✔ |
-| Floor activity / rooms-after-time (Q23, Q25) | ✖ | ✖ | ✔ | ✔ | ✔ |
+| Conflict overview (asked in search) / Conflicts screen | ✔ / ✖ | ✔ / ✖ | ✔ / ✔ | ✔ / ✔ | ✔ / ✔ |
+| Floor activity / rooms-after-time (Q23, Q25) | ✔ | ✔ | ✔ | ✔ | ✔ |
 | Free-room search (Q22), room schedule (Q20/Q21/Q24) | ✔ | ✔ | ✔ | ✔ | ✔ |
-| Professor free time / scheduled location (Q18, Q16) | ✔ (busy/free or current room only) | ✔ | ✔ | ✔ | ✔ |
+| Professor free time / scheduled location (Q18, Q16) | ✔ | ✔ | ✔ | ✔ | ✔ |
 | Master data (departments, years, batches, courses, rooms, aliases) | ✖ | ✖ | ✖ | ✖ | ✔ |
 | User/role/account-status management | ✖ | ✖ | ✖ | ✖ | ✔ |
 | Student promotion | ✖ | ✖ | ✖ | ✖ | ✔ |
 | Audit log | ✖ | ✖ | ✖ | ✖ | ✔ |
 | Processing-job monitor | own personal jobs | own | own | own | own + institutional |
 
-The scope rules are a **proposed default policy** (see D-09) defined in one place:
-`backend/app/security/policy.py`. A user holding several roles receives the union of scopes.
+**Viewing is open (decision confirmed by the group, 2026-10-31):** the official timetable is a public
+document, so every signed-in user may view and ask about any part of it. The role scope now only
+defines what *my / me* means (a student's own batch, lab group and parent division; a professor's own
+classes). Personal timetables stay private to their owner; every change (upload, review, activation,
+promotion, master data, users) stays Admin-only. Defined in `backend/app/security/policy.py`
+(`OPEN_VIEWING`).
 
 ## 3. Entity-relationship model
 

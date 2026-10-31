@@ -158,9 +158,12 @@ def test_q04_range_limit(client):
 def test_q05_batch_timetable_and_scope(client):
     j = ask(client, "kkd", "Show SE-C timetable on Tuesday")
     assert j["intent_id"] == "Q05" and j["results"] and {x["batch"] for x in j["results"]} == {"SE-C"}
-    # A student cannot read another batch's timetable: honest NO_MATCH, never broadened.
+    # Viewing is open: a student may look at another batch's timetable too (the PDF is public) …
     j = ask(client, "alice", "Show SE-C timetable on Tuesday")
-    assert j["status"] == "NO_MATCH" and j["results"] == []
+    assert j["results"] and {x["batch"] for x in j["results"]} == {"SE-C"}
+    # … while "my" still means her own batch.
+    mine = ask(client, "alice", "Show my timetable on Tuesday")
+    assert mine["results"] and not any(x["batch"] == "SE-C" for x in mine["results"])
 
 
 # ------------------------------------------------------------------ Q06–Q08
@@ -202,9 +205,12 @@ def test_q08_details_by_entry_and_by_fields(client):
     assert vague["status"] == "CLARIFICATION_REQUIRED" and vague["clarification"]["parameter"] == "entry_id"
 
 
-def test_q08_entry_from_other_scope_not_found(client, db):
+def test_q08_entry_details_open_to_all_but_only_in_the_selected_timetable(client, db):
     other = db.scalar(select(InstitutionalTimetableEntry).where(InstitutionalTimetableEntry.batch_label_raw == "SE-C"))
     j = ask(client, "alice", "details", intent="SHOW_CLASS_DETAILS", parameters={"entry_id": str(other.entry_id)})
+    assert j["status"] in ("OK", "DATA_UNVERIFIED") and j["results"][0]["entry_id"] == str(other.entry_id)
+    # an id that is not in the selected timetable is still not found
+    j = ask(client, "alice", "details", intent="SHOW_CLASS_DETAILS", parameters={"entry_id": "00000000-0000-0000-0000-000000000000"})
     assert j["status"] == "NO_MATCH"
 
 
@@ -282,7 +288,7 @@ def test_q15_professor_schedule_and_scope(client):
     admin = ask(client, "admin", "Show Professor Shah's schedule")
     assert admin["intent_id"] == "Q15" and len(admin["results"]) >= 10
     student = ask(client, "alice", "Show Professor Shah's schedule")
-    assert student["results"] and {x["batch"] for x in student["results"]} <= {"SE-A", "SE-A1"}
+    assert {x["entry_id"] for x in student["results"]} == {x["entry_id"] for x in admin["results"]}   # same full view
 
 
 def test_q15_ambiguous_professor_asks_choice(client):
@@ -378,8 +384,8 @@ def test_q22_incomplete_inventory_flagged(client, db):
         db.commit()
 
 
-def test_q23_floor_activity_role_restricted(client):
-    assert ask(client, "alice", "What is happening on the 5th floor?")["status"] == "ACCESS_DENIED"
+def test_q23_floor_activity_open_to_every_role(client):
+    assert ask(client, "alice", "What is happening on the 5th floor?")["status"] != "ACCESS_DENIED"
     j = ask(client, "principal", "What is happening on the 5th floor?")
     assert j["intent_id"] == "Q23" and j["results"] and all(x["floor"] == "5" for x in j["results"])
 

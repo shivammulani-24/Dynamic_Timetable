@@ -118,7 +118,12 @@ export function SearchResult({ res, onChoose }: { res: SearchResponse; onChoose:
         ));
       case 'FREE_INTERVALS':
         return res.results.map((f: any) => (
-          <Card key={f.start_time}>
+          <Card key={`${f.day ?? ''}${f.start_time}`}>
+            {f.day ? (
+              <Text variant="micro" muted>
+                {String(f.day).toUpperCase()}
+              </Text>
+            ) : null}
             <Row style={{ justifyContent: 'space-between' }}>
               <Text variant="heading">{fmtRange(f.start_time, f.end_time, h24)}</Text>
               <Pill tone="success" label={fmtDuration(f.duration_minutes)} />

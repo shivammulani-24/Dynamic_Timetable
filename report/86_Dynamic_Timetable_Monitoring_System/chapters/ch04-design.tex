@@ -470,6 +470,7 @@ Table~\ref{tab:sample} shows real rows extracted from page 1 of the college PDF 
 \midrule
 Password theft & Argon2id hashing~\cite{biryukov2016}; generic login error; per-IP and per-e-mail rate limit\\
 Stolen refresh token & Rotation on every refresh; reuse of an old token revokes the whole token family\\
+Viewing policy & The official timetable is public, so every signed-in user may view and ask about all of it; roles only decide what ``my'' means and who may change data (Admin)\\
 Role escalation & Roles read from \texttt{USER\_ROLE} on every request; role change bumps \texttt{token\_version}\\
 IDOR on personal data & Owner check in the query itself; non-owners get 404 (no existence leak) and an \texttt{ACCESS\_DENIED} audit row\\
 SQL / prompt injection & No SQL built from text; query plans use a closed vocabulary of operations and filters; typed, bound parameters; unknown parameters rejected\\
