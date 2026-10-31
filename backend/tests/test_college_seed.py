@@ -221,3 +221,63 @@ def test_specialised_questions_keep_their_operations(client):
                            ("admin", "Which rooms are free now?", "FIND_FREE_ROOMS")):
         j = ask(client, who, q)
         assert j["intent"] == intent and j["meta"]["plan"]["composed"] is False, (q, j["intent"])
+
+
+# ---------------------------------------------------------------- names as people say them
+
+def test_teacher_found_by_code_full_name_first_name_surname_or_sir(client):
+    want = None
+    for q in ("Where is AVN on Wednesday at 9 am?", "Where is Dr. Anant Nimkar on Wednesday at 9 am?",
+              "Where is Anant on Wednesday at 9 am?", "Where is Nimkar sir on Wednesday at 9 am?"):
+        j = ask(client, "student.se.a1", q)
+        assert j["intent"] == "PROFESSOR_SCHEDULED_LOCATION" and j["status"] == "OK", (q, j["message"])
+        got = (j["results"][0]["professor"], j["results"][0]["room"])
+        want = want or got
+        assert got == want == ("Dr. Anant Nimkar", "604"), (q, got)
+    sched = ask(client, "student.se.a1", "Show Nimkar's schedule")
+    assert sched["intent"] == "PROFESSOR_SCHEDULE" and sched["results"]
+    assert {x["professor"] for x in sched["results"]} == {"Dr. Anant Nimkar"}
+
+
+def test_shared_surname_asks_which_teacher_once_per_person(client):
+    j = ask(client, "student.se.a1", "Is Sawant free at 2 pm on Monday?", ok=False)
+    assert j["status"] == "CLARIFICATION_REQUIRED" and j["clarification"]["kind"] == "ENTITY_CHOICE"
+    labels = [c["label"] for c in j["clarification"]["choices"]]
+    assert len(labels) == 3 and sum("Rupali" in x for x in labels) == 1, labels
+
+
+def test_one_teacher_spelled_two_ways_in_the_pdf_is_one_person(client):
+    full = ask(client, "admin", "Show Sushama Pande's schedule")
+    surname = ask(client, "admin", "Show Pande's schedule")
+    code = ask(client, "admin", "Show SP's schedule")
+    ids = [{x["entry_id"] for x in r["results"]} for r in (full, surname, code)]
+    assert ids[0] == ids[1] == ids[2] and len(ids[0]) >= 4
+    assert ask(client, "student.se.a1", "When is Pande ma'am free on Friday?")["status"] == "OK"
+
+
+def test_subject_found_by_part_of_its_name_or_a_small_typo(client):
+    full = {x["entry_id"] for x in ask(client, "student.se.a1", "Find all DBMS classes")["results"]}
+    assert {x["entry_id"] for x in ask(client, "student.se.a1", "Find all database classes")["results"]} == full
+    coa = ask(client, "student.se.a1", "Show Computer Organization classes")
+    assert coa["intent"] == "FIND_COURSE_CLASSES" and all("Computer Organization" in x["course"] for x in coa["results"])
+    n = ask(client, "student.se.a1", "How many discrete structures classes do I have?")   # PDF spells it "Discreate"
+    listed = ask(client, "student.se.a1", "Find all discreate structures classes")["results"]
+    assert n["results"][0]["value"] == len(_slots(listed)) == 3
+
+
+def test_lab_group_timetable_includes_its_division_lectures(client):
+    j = ask(client, "admin", "Show TE-B4 timetable on Monday")
+    batches = {x["batch"] for x in j["results"]}
+    assert j["status"] == "OK" and "TE-B" in batches and batches <= {"TE-B", "TE-B4"}, batches
+    student = {x["entry_id"] for x in ask(client, "student.te.b4", "What are my classes on Monday?")["results"]}
+    assert {x["entry_id"] for x in j["results"]} == student          # same view as the TE-B4 student's own
+
+
+def test_we_us_our_mean_me_and_professor_questions_by_day_or_batch(client):
+    j = ask(client, "student.te.b4", "Which professors teach us?")
+    assert j["intent"] == "PROFESSORS_FOR_BATCH" and j["results"]
+    day = ask(client, "student.te.b4", "What is Bhavathankar sir teaching on Monday?")
+    assert day["intent"] == "PROFESSOR_SCHEDULE" and all(x["day_of_week"] == 1 for x in day["results"])
+    taught = ask(client, "kkd", "Which batches do I teach?")
+    agg = taught["results"][0]
+    assert taught["result_type"] == "AGGREGATE" and agg["unit"] == "batches" and "SE-A" in agg["labels"]

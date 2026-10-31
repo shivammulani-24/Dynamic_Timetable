@@ -169,6 +169,11 @@ plans are compiled by the composed executor (template QT23) from the same buildi
 Entity resolution (C5) works in this order: (1) exact match of normalised label, id or alias;
 (2) a \emph{unique} whole-word match (``desai'' $\rightarrow$ Prof.\ Kiran K.\ Desai); (3) fuzzy
 suggestions (RapidFuzz similarity) that are \emph{always shown as choices}, never auto-selected.
+Teachers are found the way students say them: faculty code (``AVN''), full name, first name or surname
+alone (``Anant'', ``Nimkar's schedule''), or with ``sir''/``ma'am'' after it. A surname shared by several
+teachers (``Sawant'') asks which one; entries that share a faculty code are merged into one person,
+because the PDF legend sometimes spells the same name differently. Subjects are found by part of their
+name (``database'', ``computer organization'') with a one-letter typo tolerance for long words.
 
 \subsubsection{C6: Next class and free rooms}
 \begin{algorithm}[H]

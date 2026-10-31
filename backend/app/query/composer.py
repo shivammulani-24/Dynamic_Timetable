@@ -86,6 +86,17 @@ def _with_window(when: str, plan: QueryPlan, wmeta: dict) -> str:
     return when
 
 
+def _about(f: T.Filters) -> str:
+    """What the answer is about, besides the person: "of DBMS", "for TE-B4", "in room 508"."""
+    if f.course:
+        return f"of {f.course[0].display}"
+    if f.batch:
+        return f"for {f.batch[0].display}"
+    if f.room:
+        return f"in room {f.room[0].display}"
+    return ""
+
+
 def _date_phrase(d: date, today: date) -> str:
     if d == today:
         return "today"
@@ -151,7 +162,10 @@ def run(r: "E.Run", plan: QueryPlan) -> T.Result:
         warnings += T._effective_warning(r.ctx, days[0].date)
     meta = {"plan": plan.as_dict(), "when": when, **wmeta}
     when = _with_window(when, plan, wmeta)
-    who = E._subject(f, "you")
+    who = f.professor[0].display if f.professor else "you"
+    about = _about(f)
+    if about and plan.unit != "BATCHES":
+        when = f"{about} {when}"
     op = plan.operation
     if op in ("FIRST", "LAST") and len(days) > 1:
         op, plan.metric = "PER_DAY", plan.metric or ("FIRST_START" if op == "FIRST" else "LAST_END")
@@ -233,6 +247,14 @@ def _course_name(it: dict) -> str:
 
 def _count(plan, per_day, who, when, meta, warnings) -> T.Result:
     items = [it for _, its in per_day for it in its]
+    if plan.unit == "BATCHES":
+        names = sorted({it.get("batch") for it in items if it.get("batch")})
+        n = len(names)
+        verb = "You teach" if who == "you" else f"{who} teaches"
+        meta["message"] = f"{verb} {n} batch(es) {when}" + (f": {', '.join(names[:10])}." if names else ".")
+        item = {"metric": "COUNT", "value": n, "unit": "batches", "label": f"Batches {when}", "breakdown": [],
+                "labels": names, "entries": []}
+        return T.Result([item], result_type="AGGREGATE", warnings=warnings, meta=meta)
     if plan.unit == "COURSES":
         names = sorted({_course_name(it) for it in items})
         n = len(names)

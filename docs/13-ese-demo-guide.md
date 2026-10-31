@@ -171,7 +171,7 @@ Wait for **Needs review** (about 10–60 s online), then open it:
 
 > **Say:** "To summarise: one React Native app for Android, iPhone and laptop; a FastAPI back end;
 > PostgreSQL; a background worker; an extraction pipeline with OCR; and a safe rule-based question
-> engine. It is backed by **168 automated back-end tests, 20 app tests and end-to-end browser tests
+> engine. It is backed by **174 automated back-end tests, 20 app tests and end-to-end browser tests
 > that all pass**. Measured search time is about **40–50 ms** for one user. With 4 server workers
 > on a laptop it handled about **60 searches per second** with **zero wrong answers at 32
 > simultaneous users**. It's deployed online for free. Next steps are a load test on real

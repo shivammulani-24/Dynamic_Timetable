@@ -71,6 +71,8 @@ _START_WORDS = re.compile(r"\b(start|starts|begin|begins|first class|first lectu
 _SUBJ_PROF = re.compile(r"\b(professors?|teachers?|faculty|faculties|staff|profs?|lecturers)\b")
 _SUBJ_COURSE = re.compile(r"\b(subjects?|courses?|papers?)\b")
 _SUBJ_ROOM = re.compile(r"\b(rooms|classrooms|halls)\b")
+_SUBJ_BATCH = re.compile(r"\b(batches|divisions|groups) (do|does|will|did) (i|we|he|she|they|prof\w*|dr\w*|\w+) (teach|take|handle)\b"
+                         r"|\b(which|what|how many) (batches|divisions)\b|\bwho do (i|we) teach\b|\bwhom do (i|we) teach\b")
 _NEXT = re.compile(r"\bnext\s+(lab|labs|practical|lecture|theory)\b|\bupcoming\s+(lab|practical|lecture)\b")
 
 
@@ -83,7 +85,7 @@ class QueryPlan:
     sort: str | None = None             # MOST | LEAST | EARLIEST | LATEST
     metric: str | None = None           # for PER_DAY: CLASSES | FIRST_START | LAST_END | HOURS
     count_of: str | None = None         # COUNT over a specialised operation's results
-    unit: str | None = None             # what COUNT counts: CLASSES (default) or COURSES
+    unit: str | None = None             # what COUNT counts: CLASSES (default), COURSES or BATCHES
     filters: dict = field(default_factory=dict)   # names mentioned (typed later against the timetable)
     when: dict = field(default_factory=dict)      # date / weekday / week as understood from the text
 
@@ -142,6 +144,8 @@ def build_plan(p: Parsed, specialised: str | None) -> QueryPlan:
     kind = "LAB" if _LAB.search(t) else ("LECTURE" if _LECTURE.search(t) else None)
     window = _window(p, t)
     base = dict(kind=kind, window=window, filters=_filters(p), when=_when(p))
+    if _SUBJ_BATCH.search(t) and (p.self_ref or p.professor):
+        return QueryPlan(operation="COUNT", composed=True, unit="BATCHES", **base)
 
     op: str | None = None
     sort = metric = None

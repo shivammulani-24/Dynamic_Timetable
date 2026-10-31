@@ -177,17 +177,20 @@ def _add_date(p: Parsed, y: int, mo: int, d: int) -> None:
 
 
 _PROF = re.compile(
-    r"\b(?:prof(?:essor)?|dr|mr|mrs|ms|miss|sir|madam|ma'am|faculty|teacher)\.?\s+"
+    r"\b(?:prof(?:essor)?|dr|mr|mrs|ms|faculty|teacher)\.?\s+"
     r"(?P<name>[a-z][a-z.]*(?:\s+[a-z][a-z.]*){0,3}?)"
     r"(?='s\b|\s+(?:schedule|timetable|free|teach|teaches|teaching|take|takes|class|classes|lectures?|now|today|tomorrow|"
     r"on|at|this|next|in|scheduled|right|available|busy|located|sitting|be|is|do|does)\b|\s*$)"
 )
+_PROF_AFTER = re.compile(r"\b(?P<name>[a-z][a-z.]{2,})\s+(?:sir|madam|ma'am|mam|maam|miss)\b")
+_NOT_A_NAME = {"the", "our", "my", "your", "which", "what", "where", "when", "is", "are", "does", "do", "has", "have",
+               "any", "this", "that", "with", "for", "and", "class", "lecture", "lab", "free", "now", "today"}
 _ROOM = re.compile(r"\b(?:room|rm|classroom|lab|hall|cabin)\s*(?:no\.?|number|#)?\s*(?P<room>[a-z]?-?\d{2,4}(?:\s*-\s*[a-z0-9]{1,3}|[a-z])?(?:\s+old)?)\b")
 _BARE_ROOM = re.compile(r"\b(?P<room>[a-z]{1,2}-\d{2,4}[a-z]?)\b")
 _FLOOR = re.compile(r"\b(?:(?P<w>ground|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|\d{1,2}(?:st|nd|rd|th)?)\s+floor"
                     r"|floor\s*(?:no\.?|number)?\s*(?P<n>\d{1,2}|ground))\b")
 _BATCH = re.compile(r"\b(?:batch|division|div|class|section)\s+(?P<batch>[a-z]{1,4}(?:[- ]?[a-z])?(?:[- ]?\d)?)\b")
-_SELF = re.compile(r"\b(i|i'm|im|me|my|mine|am i|do i|have i)\b")
+_SELF = re.compile(r"\b(i|i'm|im|me|my|mine|am i|do i|have i|we|us|our|ours)\b")
 
 
 def parse(text: str, today: date) -> Parsed:
@@ -204,6 +207,10 @@ def parse(text: str, today: date) -> Parsed:
         name = re.sub(r"\b(schedule|timetable)\b", "", m.group("name")).strip(" .")
         if name and name not in ("free", "now"):
             p.professor = name
+    else:
+        m = _PROF_AFTER.search(t)              # "nimkar sir", "pande ma'am"
+        if m and m.group("name").strip(".") not in _NOT_A_NAME:
+            p.professor = m.group("name").strip(".")
     m = _ROOM.search(t) or _BARE_ROOM.search(t)
     if m:
         p.room = m.group("room").strip()
@@ -252,8 +259,9 @@ def classify(p: Parsed, *, has_professor: bool, has_room: bool, has_batch: bool,
             return "CHECK_SCHEDULE_FREE"
         if re.search(r"\b(where|which room|location|located|sitting|find)\b", t):
             return "PROFESSOR_SCHEDULED_LOCATION"
+        when_given = bool(p.weekday or p.dates or p.now or p.week_ref or p.times)
         if re.search(r"\b(which|what)\b.*\b(courses?|subjects?|papers?)\b|\bteach(es|ing)?\b(?!.*\b(batch|division|class)\b)|\bcourses? (of|by|taught)\b", t) \
-                and not has_batch:
+                and not has_batch and not when_given:
             return "PROFESSOR_COURSE"
         return "PROFESSOR_SCHEDULE"
     teachers_q = re.search(r"\b(who|which|list|show|what)\b.*\b(professors?|faculty|faculties|teachers?|staff|profs?|lecturers?)\b|\bwho teach(es)?\b", t)

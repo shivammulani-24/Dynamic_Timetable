@@ -96,6 +96,10 @@ class Q:
 
             child_ids = select(Batch.batch_id).where(Batch.parent_batch_id == int(key))
             conds.append(e.batch_id.in_(child_ids))  # a division includes its lab sub-groups
+            # …and a lab sub-group includes its division's classes (TE-B4 → TE-B), as a student sees them
+            parent = select(Batch.parent_batch_id).where(Batch.batch_id == int(key)).scalar_subquery()
+            grand = select(Batch.parent_batch_id).where(Batch.batch_id == parent).scalar_subquery()
+            conds += [e.batch_id == parent, e.batch_id == grand]
         return or_(*conds)
 
     def apply(self, q, f: Filters):

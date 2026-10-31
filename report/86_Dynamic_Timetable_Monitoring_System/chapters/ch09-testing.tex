@@ -18,13 +18,13 @@ every change to the parser is checked against the real document (regression test
 \texttt{test\_\allowbreak{}auth.py} & 15 & Login, tokens, rotation, reuse detection, suspension, role change, rate limit, reset-code safety\\
 \texttt{test\_\allowbreak{}extraction.py} & 24 & PDF-01\ldots PDF-13 of the extraction specification, OCR, other formats, time rules, cell grammar\\
 \texttt{test\_\allowbreak{}reference\_\allowbreak{}pdf.py} & 14 & Regression on the real college PDF (10 pages)\\
-\texttt{test\_\allowbreak{}college\_\allowbreak{}seed.py} & 22 & Real PDF end to end: seed $\rightarrow$ API as student, professor, HOD, Admin; 7 composed query-plan tests (count, first/last, busiest day, lab filter scope, exists, counting professors/subjects, clarification, injection)\\
+\texttt{test\_\allowbreak{}college\_\allowbreak{}seed.py} & 28 & Real PDF end to end: seed $\rightarrow$ API as student, professor, HOD, Admin; 7 composed query-plan tests (count, first/last, busiest day, lab filter scope, exists, counting professors/subjects, clarification, injection)\\
 \texttt{test\_\allowbreak{}uploads\_\allowbreak{}and\_\allowbreak{}domains.py} & 13 & Upload $\rightarrow$ worker $\rightarrow$ status, primary rules, IDOR, idempotency, corrections\\
 \texttt{test\_\allowbreak{}query\_\allowbreak{}engine.py} & 59 & Every specialised operation Q01--Q30, composed plans in the personal domain, clarifications, domain isolation, injection text\\
 \texttt{test\_\allowbreak{}academics\_\allowbreak{}admin.py} & 13 & Registration, promotion, concurrency, master data, role matrix, conflicts\\
 \texttt{test\_\allowbreak{}deploy.py} & 8 & Web app serving, \texttt{HEAD} connectivity check, production safety\\
 \midrule
-\textbf{Back end (pytest)} & \textbf{168} & \textbf{168 passed, 0 failed}\\
+\textbf{Back end (pytest)} & \textbf{174} & \textbf{174 passed, 0 failed}\\
 Mobile unit/component (Jest) & 20 & API client, single-flight refresh, offline cache, result renderer (incl.\ count and day-summary cards), status labels\\
 End-to-end (Playwright) & 24 + 21 & Real college timetable flow 24/24 (incl.\ composed questions); synthetic smoke flow incl.\ upload 21/21\\
 TypeScript \texttt{strict} type check & -- & clean\\
@@ -183,7 +183,7 @@ False clash reports & 0 & 0 (2 reported, both genuine) & Yes\\
 Response time (median, 1 user) & $<$300 ms & 37--47 ms & Yes\\
 Throughput (4 workers) & $\geq$30 req/s & 46.5 req/s at 4 clients, 60.4 at 8 & Yes\\
 Reliability under concurrency & 100\% & 960/960 correct at 32 clients & Yes\\
-Functional correctness & 100\% tests pass & 168/168, 20/20, 24/24, 21/21 & Yes\\
+Functional correctness & 100\% tests pass & 174/174, 20/20, 24/24, 21/21 & Yes\\
 Extraction time (10 pages) & $<$10 s & 1.65 s & Yes\\
 Memory per API worker; DB size & $<$300 MB; $<$50 MB & $\approx$115 MB; 12 MB & Yes\\
 Supported question types & $\geq$25 & 30 specialised operations + composed plans (8 operations $\times$ filters $\times$ windows) & Yes\\

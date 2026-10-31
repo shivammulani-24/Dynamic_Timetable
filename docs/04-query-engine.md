@@ -75,7 +75,16 @@ response carries `meta.plan`, so the interpretation is visible and testable.
 
 Order: exact normalised label/id/alias → **unique** whole-word match (`desai` → *Prof. Kiran K. Desai*)
 → fuzzy *suggestions* (`dessai`) which are **always asked**, never auto-selected. A course also
-matches its session variants (`DS` → `DS`, `DS Lab`). Choices are returned as opaque keys
+matches its session variants (`DS` → `DS`, `DS Lab`).
+
+Names are found the way people say them, without "Prof." in front: the faculty code (`AVN`), the full
+name (`Anant Nimkar`), the first name or surname alone (`Anant`, `Nimkar's schedule`), or with
+`sir`/`ma'am` after it (`Nimkar sir`, `Pande ma'am`). A surname shared by several teachers
+(`Sawant`) asks which one. One teacher who appears both as a staff record and as unmapped labels
+(the PDF legend spelled the name differently on another page) is treated as one person — entries
+sharing a faculty code are merged. Subjects are found by part of their name (`database`,
+`computer organization`) with a one-letter typo tolerance for long words (`discrete` ~ the PDF's
+`Discreate`). A lab sub-group (`TE-B4`) includes its division's lectures (`TE-B`). Choices are returned as opaque keys
 (`id:…`/`label:…`) that must still exist in the same timetable when sent back.
 
 ## Rules enforced
