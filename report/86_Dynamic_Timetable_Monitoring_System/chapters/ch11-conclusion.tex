@@ -7,16 +7,17 @@ mini project built \emph{Dynamic Timetable}, a role-based timetable monitoring s
 timetable as it is actually published (PDF, scanned image, Excel or Word), extracts every class with
 its source page and a verification status, detects clashes, and serves students, professors, the HOD,
 the Principal and the Admin through one app on Android, iPhone and laptop. Users can ask everyday
-questions in plain English. A deterministic engine with 30 intents and 22 parameterised templates
-answers them in about 40~ms without ever generating SQL, and it asks for clarification instead of
-guessing. On the college's real 10-page timetable the system verified 452 of 453 class entries
+questions in plain English. A deterministic compositional planner turns each question into a typed
+query plan (operation, filters, lab/lecture, date or week, time window, ordering) and compiles it into
+parameterised queries, so it answers counts, first/last and day-wise questions as well as the everyday
+ones in about 40~ms, never generates SQL from text, and asks for clarification instead of guessing. On the college's real 10-page timetable the system verified 452 of 453 class entries
 automatically and found the two genuine clashes in the published document. The system is covered by
-159 back-end tests, 18 app tests and end-to-end browser tests, and it runs as a free online demo.
+168 back-end tests, 20 app tests and end-to-end browser tests, and it runs as a free online demo.
 
 \subsection{Achievement of Objectives}
 \begin{itemize}
 \item \textbf{Achieved:} O1 (99.8\% verified), O2 (all formats through one pipeline), O3 (five roles,
-      server-side), O4 (30 intents), O5 (0 false clash reports), O6 (strict domain separation and
+      server-side), O4 (composed query plans plus specialised operations), O5 (0 false clash reports), O6 (strict domain separation and
       archives), O9 (all tests passing).
 \item \textbf{Achieved on development hardware:} O7 (latency and correctness under 32 concurrent
       clients). It still has to be confirmed on production hardware.
@@ -31,8 +32,10 @@ automatically and found the two genuine clashes in the published document. The s
       stacked lab-group parsing, page-local legends and per-entry provenance.
 \item A conflict detector that separates intended overlaps (parallel labs, electives, shared sessions)
       from genuine clashes in $O(n\log n + m)$.
-\item A safe natural-language interface: closed intent registry, timetable-scoped entity resolution,
-      clarification instead of guessing, and parameterised templates, which make it injection-proof by design.
+\item A safe, compositional natural-language interface: questions become typed query plans (operation,
+      filters, lab/lecture, date or week, time window, ordering) compiled into parameterised queries with
+      timetable-scoped entity resolution and clarification instead of guessing, injection-proof by design
+      and no longer limited to a fixed list of questions.
 \item A secure multi-role architecture: Argon2id, rotating refresh tokens with reuse detection,
       database-level ownership constraints (composite FKs, partial unique indexes) and audited corrections.
 \item A free, reproducible deployment: Docker image, infrastructure as code (\texttt{render.yaml}) and

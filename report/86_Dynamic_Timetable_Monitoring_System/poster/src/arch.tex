@@ -13,7 +13,7 @@
 \node[e,right=4mm of h,minimum width=30mm] (ad) {Admin};
 \node[draw,dashed,thick,fit=(s)(p)(h)(ad),inner sep=5pt,label={[font=\large\bfseries]above:Android $\cdot$ iPhone $\cdot$ Laptop (React Native / Expo)}] (cl) {};
 \node[b,below=16mm of cl.south west,anchor=north west,minimum width=37mm] (auth) {Auth \& RBAC\\JWT, Argon2id};
-\node[b,right=3mm of auth,minimum width=40mm] (qe) {NL Query Engine\\Q01--Q30 $\rightarrow$ QT01--QT22};
+\node[b,right=3mm of auth,minimum width=40mm] (qe) {Query planner\\question $\rightarrow$ plan $\rightarrow$ SQL};
 \node[b,right=3mm of qe,minimum width=40mm] (sv) {Services: archives,\\conflicts, promotion};
 \node[draw,very thick,rounded corners,fit=(auth)(qe)(sv),inner sep=6pt,label={[font=\large\bfseries,anchor=south west]north west:FastAPI server (stateless)}] (api) {};
 \node[b,below=16mm of qe,fill=gray!15,minimum width=40mm] (db) {PostgreSQL 16\\31 tables};

@@ -61,8 +61,9 @@ The objectives were defined to be specific and measurable:
       common pipeline.
 \item Provide role-based dashboards (current class, next class, free periods) for five roles:
       Student, Professor, HOD, Principal and Admin, with server-side enforcement of permissions.
-\item Answer everyday questions typed in English through a deterministic engine covering at least
-      25 question types, with clarification instead of guessing when a question is ambiguous.
+\item Answer everyday questions typed in English through a deterministic engine that is not limited to
+      a fixed list of questions: at least 25 kinds of question plus free combinations of operations and
+      filters, with clarification instead of guessing when a question is ambiguous.
 \item Detect professor, room and batch clashes automatically and report only genuine clashes.
 \item Keep institutional and personal timetables strictly separate, with complete version history.
 \item Achieve a median search response time below 300~ms for a single user on modest hardware, with
@@ -77,7 +78,7 @@ The objectives were defined to be specific and measurable:
 Timetable upload and extraction (PDF, scanned PDF, JPG/PNG, XLSX, XLS, CSV, DOCX, DOC); validation,
 review and auditable correction; archive of all versions with one official (primary) timetable;
 activation notifications; conflict detection; role dashboards; weekly timetable view; natural-language
-search (30 intents); free-room and professor-availability search; personal timetables; academic-year
+search (compositional query plans); free-room and professor-availability search; personal timetables; academic-year
 promotion of students; administrator master data (departments, batches, courses, rooms, users,
 aliases); audit log.
 
@@ -107,8 +108,10 @@ The proposed system (Figure~\ref{fig:arch}) has three parts:
       \textsc{Rejected}.
 \item \textbf{A central back end} (FastAPI + PostgreSQL) that stores timetables as archives, enforces
       role-based access on every request, detects conflicts, and answers questions through a
-      rule-based natural-language engine with a fixed registry of 30 intents (Q01--Q30) and 22
-      parameterised query templates (QT01--QT22).
+      rule-based \emph{compositional query planner}: each question becomes a typed plan (operation,
+      filters, lab/lecture, date or week, time window, ordering) that is compiled into parameterised
+      queries. Specialised operations (QT01--QT22) cover free rooms, professor free time, archives and
+      similar needs; composed plans run on template QT23.
 \item \textbf{A cross-platform app} (React Native/Expo) with role dashboards, a weekly view, an
       ``Ask'' screen, archives, uploads, review screens and administrator tools.
 \end{enumerate}
@@ -121,9 +124,11 @@ The proposed system (Figure~\ref{fig:arch}) has three parts:
       co-curricular LLC slots with no teacher or room.
 \item \textbf{Honest uncertainty.} Instead of silently guessing, every entry carries a verification
       status, the raw source text and its page. Ambiguous a.m./p.m.\ is never corrected silently.
-\item \textbf{Safe natural-language queries.} Questions are mapped to a closed registry of intents and
-      parameterised templates. The engine never builds SQL from user text, which makes it immune to
-      prompt or SQL injection by construction and makes every answer reproducible.
+\item \textbf{Safe, compositional natural-language queries.} Questions are not limited to a fixed list:
+      independent pieces (count, first/last, busiest day, lab/lecture, before/after a time, this week …)
+      combine into a typed query plan. The plan contains only values from a closed vocabulary and is
+      compiled with bound parameters and the caller's role scope, so the engine never builds SQL from
+      user text, is immune to prompt or SQL injection by construction, and every answer is reproducible.
 \item \textbf{Strict domain separation.} Institutional and personal data live in separate tables;
       the code cannot even express a query that unions them.
 \item \textbf{Clash detection with intent awareness.} Parallel lab sub-groups and elective options are
@@ -189,7 +194,7 @@ Reliability & Correct responses / total requests under concurrency & 100\% & Loa
 Functional correctness & Passed / total automated tests & 100\% & pytest, Jest, Playwright\\
 Extraction time & Time to extract the 10-page real PDF & $< 10$ s & Timed pipeline run (median of 5)\\
 Resource usage & Memory of one API worker; database size for one timetable & $< 300$ MB; $< 50$ MB & \texttt{ps}, \texttt{pg\_database\_size}\\
-Coverage of questions & Number of supported question types (intents) & $\geq 25$ & Intent registry and its tests\\
+Coverage of questions & Specialised operations plus composable plan operations & $\geq 25$ & Registry, plan schema and their tests\\
 \bottomrule
 \end{tabularx}
 \end{table}

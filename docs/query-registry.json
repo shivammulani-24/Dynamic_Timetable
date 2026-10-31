@@ -16,7 +16,7 @@
    ],
    "example": "Show my timetable",
    "state_changing": false,
-   "notes": "No date \u2192 today (confirmed decision)."
+   "notes": "No date → today (confirmed decision)."
   },
   {
    "id": "Q02",
@@ -568,6 +568,24 @@
    "example": "Compare my personal and college timetable",
    "state_changing": false,
    "notes": "Unsupported in V1; always rejected without querying either domain."
+  },
+  {
+   "id": "Q31",
+   "intent": "COMPOSED_QUERY",
+   "templates": [
+    "QT23"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "required": [
+    "query"
+   ],
+   "optional": [],
+   "example": "How many labs do I have this week?",
+   "state_changing": false,
+   "notes": "Compositional plan: operation (list/count/exists/total hours/first/last/next/per day) + filters (me, batch, professor, room, course, lab/lecture) + when (date, weekday, week) + time window (at/after/before/between/after lunch) + sort. Compiled by app/query/composer.py."
   }
  ],
  "templates": [
@@ -1301,6 +1319,90 @@
    ],
    "empty_result": "n/a (action)",
    "uncertain_handling": "Only READY/NEEDS_REVIEW timetables are eligible."
+  },
+  {
+   "id": "QT23",
+   "operation": "COMPOSED_CLASS_QUERY",
+   "intents": [
+    "Q31"
+   ],
+   "required": [
+    "timetable_id",
+    "plan"
+   ],
+   "optional": [
+    "date",
+    "day_of_week",
+    "start_date",
+    "end_date",
+    "time",
+    "start_time",
+    "end_time",
+    "course",
+    "batch",
+    "professor",
+    "room",
+    "lunch_time"
+   ],
+   "domains": [
+    "INSTITUTIONAL",
+    "PERSONAL"
+   ],
+   "result_fields": [
+    "entry_id",
+    "kind",
+    "day_of_week",
+    "date",
+    "start_time",
+    "end_time",
+    "duration_minutes",
+    "course",
+    "course_code",
+    "professor",
+    "batch",
+    "room",
+    "floor",
+    "verification_status",
+    "time_uncertain",
+    "is_tentative",
+    "warnings",
+    "metric",
+    "value",
+    "breakdown",
+    "classes",
+    "hours",
+    "first_start",
+    "last_end"
+   ],
+   "empty_result": "OK with a zero count for COUNT/TOTAL_HOURS; NO_MATCH for listings",
+   "uncertain_handling": "Entries with uncertain/missing times are EXCLUDED and the exclusion is reported as a warning. (for time-based operations; listings and counts mark them)",
+   "operations": [
+    "LIST",
+    "COUNT",
+    "EXISTS",
+    "TOTAL_HOURS",
+    "FIRST",
+    "LAST",
+    "NEXT",
+    "PER_DAY"
+   ],
+   "kinds": [
+    "LAB",
+    "LECTURE"
+   ],
+   "windows": [
+    "AT",
+    "AFTER",
+    "BEFORE",
+    "BETWEEN",
+    "AFTER_LUNCH"
+   ],
+   "sorts": [
+    "MOST",
+    "LEAST",
+    "EARLIEST",
+    "LATEST"
+   ]
   }
  ]
 }

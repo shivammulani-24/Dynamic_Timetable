@@ -60,3 +60,28 @@ test('a slot without faculty or room shows just the course (e.g. LLC)', async ()
   expect(queryByText(/Not given/)).toBeNull();
   expect(queryByText('Unverified')).toBeNull();
 });
+
+test('a composed count shows the number, the per-day breakdown and the classes counted', async () => {
+  const res: SearchResponse = {
+    ...base, intent: 'COMPOSED_QUERY', intent_id: 'Q31', result_type: 'AGGREGATE', message: 'You have 8 labs this week.',
+    results: [{ metric: 'COUNT', value: 8, unit: 'labs', label: 'Labs this week', breakdown: [{ day: 'Tue 27 Oct', value: 2 }],
+      entries: [{ ...entry, verification_status: 'VERIFIED', time_uncertain: false }] }],
+  };
+  const { getByText } = await render(<SearchResult res={res} onChoose={jest.fn()} />);
+  expect(getByText('8')).toBeTruthy();
+  expect(getByText('Tue 27 Oct: 2')).toBeTruthy();
+  expect(getByText('Data Structures (Lab)')).toBeTruthy();
+});
+
+test('a day-wise summary marks the top day when the question asked for one', async () => {
+  const res: SearchResponse = {
+    ...base, intent: 'COMPOSED_QUERY', intent_id: 'Q31', result_type: 'DAY_SUMMARY', message: 'Busiest day: Wednesday (6 classes).',
+    meta: { plan: { operation: 'PER_DAY', sort: 'MOST' } },
+    results: [{ day: 'Wednesday', classes: 6, labs: 1, hours: 7, first_start: '09:00', last_end: '17:15' },
+      { day: 'Friday', classes: 4, labs: 2, hours: 6, first_start: '09:00', last_end: '16:15' }],
+  };
+  const { getByText, getAllByText } = await render(<SearchResult res={res} onChoose={jest.fn()} />);
+  expect(getByText('Wednesday')).toBeTruthy();
+  expect(getAllByText('Top').length).toBe(1);
+  expect(getByText(/6 classes · 1 lab · 7 h/)).toBeTruthy();
+});

@@ -23,6 +23,9 @@ const EXAMPLES = [
   'Which professors teach my batch?',
   'When is Prof. Desai free tomorrow?',
   'Do I have classes after lunch?',
+  'How many labs do I have this week?',
+  'When is my last class on Friday?',
+  'Which day is my busiest?',
 ];
 
 interface Turn {

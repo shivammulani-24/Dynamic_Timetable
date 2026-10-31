@@ -575,5 +575,21 @@ def test_search_history_and_saved_searches(client):
 
 def test_registry_lists_all_intents_and_templates(client):
     reg = client.get("/api/v1/search/registry", headers=H(client, "alice")).json()
-    assert [i["id"] for i in reg["intents"]] == [f"Q{n:02d}" for n in range(1, 31)]
-    assert [t["id"] for t in reg["templates"]] == [f"QT{n:02d}" for n in range(1, 23)]
+    assert [i["id"] for i in reg["intents"]] == [f"Q{n:02d}" for n in range(1, 32)]
+    assert [t["id"] for t in reg["templates"]] == [f"QT{n:02d}" for n in range(1, 24)]
+
+
+def test_composed_plan_runs_in_the_personal_domain_only(client):
+    j = ask(client, "alice", "How many classes do I have in the week?", domain="PERSONAL")
+    assert j["_http"] == 200 and j["intent"] == "COMPOSED_QUERY" and j["result_type"] == "AGGREGATE", j
+    assert j["context"]["domain"] == "PERSONAL"
+    listed = ask(client, "alice", "Show my lectures", domain="PERSONAL")
+    assert listed["context"]["domain"] == "PERSONAL"
+    inst = ask(client, "alice", "How many classes do I have in the week?")
+    assert inst["context"]["domain"] == "INSTITUTIONAL"
+    assert inst["context"]["timetable_id"] != j["context"]["timetable_id"]
+
+
+def test_composed_intent_cannot_be_run_without_question_text(client):
+    j = ask(client, "alice", None, intent="COMPOSED_QUERY")
+    assert j["_http"] == 400 and j["status"] == "INVALID_REQUEST"

@@ -14,15 +14,17 @@ background worker extracts every class cell with geometry-aware table parsing an
 per-page legends, separates lab sub-groups, validates times and flags anything uncertain for review.
 Students, professors, the HOD and the Principal then see a dashboard (current class, next class,
 free periods) and can ask questions in plain English such as ``Do I have classes after lunch on
-Tuesday?'' or ``Which rooms are free at 10~am?''. A deterministic rule-based engine maps each
-question to one of 30 approved intents and 22 parameterised query templates, so it never generates
-SQL and cannot be talked into reading other users' data. Institutional and personal timetables are
+Tuesday?'', ``How many labs do I have this week?'' or ``Which day is my busiest?''. A deterministic
+compositional planner turns each question into a typed query plan (an operation such as list, count,
+first/last, total hours or day-wise summary, combined with filters, a date or week, a time window and
+an ordering), which the server compiles into parameterised queries with the user's role scope added.
+It never generates SQL from text and cannot be talked into reading other users' data. Institutional and personal timetables are
 kept strictly separate, and the system automatically detects professor, room and batch clashes.
 
 On the college's real 10-page timetable PDF the system extracted 453 class entries, of which 452
 were verified automatically; the one remaining entry has no time printed in the PDF. It also reported
-exactly the two genuine clashes present in the document. The work is supported by 159 automated
-back-end tests, 18 mobile unit tests and end-to-end browser tests (22/22 and 21/21 passing).
+exactly the two genuine clashes present in the document. The work is supported by 168 automated
+back-end tests, 20 mobile unit tests and end-to-end browser tests (24/24 and 21/21 passing).
 Measured single-user search latency was about 37--47~ms (median) on a 4-core development machine.
 The system has been deployed as a free online demo. Its limitations are that it has not been load
 tested on production hardware, push notifications need a store build, and extraction accuracy has

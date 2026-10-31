@@ -18,15 +18,15 @@ every change to the parser is checked against the real document (regression test
 \texttt{test\_\allowbreak{}auth.py} & 15 & Login, tokens, rotation, reuse detection, suspension, role change, rate limit, reset-code safety\\
 \texttt{test\_\allowbreak{}extraction.py} & 24 & PDF-01\ldots PDF-13 of the extraction specification, OCR, other formats, time rules, cell grammar\\
 \texttt{test\_\allowbreak{}reference\_\allowbreak{}pdf.py} & 14 & Regression on the real college PDF (10 pages)\\
-\texttt{test\_\allowbreak{}college\_\allowbreak{}seed.py} & 15 & Real PDF end to end: seed $\rightarrow$ API as student, professor, HOD, Admin\\
+\texttt{test\_\allowbreak{}college\_\allowbreak{}seed.py} & 22 & Real PDF end to end: seed $\rightarrow$ API as student, professor, HOD, Admin; 7 composed query-plan tests (count, first/last, busiest day, lab filter scope, exists, counting professors/subjects, clarification, injection)\\
 \texttt{test\_\allowbreak{}uploads\_\allowbreak{}and\_\allowbreak{}domains.py} & 13 & Upload $\rightarrow$ worker $\rightarrow$ status, primary rules, IDOR, idempotency, corrections\\
-\texttt{test\_\allowbreak{}query\_\allowbreak{}engine.py} & 57 & Every intent Q01--Q30, clarifications, domain isolation, injection text\\
+\texttt{test\_\allowbreak{}query\_\allowbreak{}engine.py} & 59 & Every specialised operation Q01--Q30, composed plans in the personal domain, clarifications, domain isolation, injection text\\
 \texttt{test\_\allowbreak{}academics\_\allowbreak{}admin.py} & 13 & Registration, promotion, concurrency, master data, role matrix, conflicts\\
 \texttt{test\_\allowbreak{}deploy.py} & 8 & Web app serving, \texttt{HEAD} connectivity check, production safety\\
 \midrule
-\textbf{Back end (pytest)} & \textbf{159} & \textbf{159 passed, 0 failed}\\
-Mobile unit/component (Jest) & 18 & API client, single-flight refresh, offline cache, result renderer, status labels\\
-End-to-end (Playwright) & 22 + 21 & Real college timetable flow 22/22; synthetic smoke flow incl.\ upload 21/21\\
+\textbf{Back end (pytest)} & \textbf{168} & \textbf{168 passed, 0 failed}\\
+Mobile unit/component (Jest) & 20 & API client, single-flight refresh, offline cache, result renderer (incl.\ count and day-summary cards), status labels\\
+End-to-end (Playwright) & 24 + 21 & Real college timetable flow 24/24 (incl.\ composed questions); synthetic smoke flow incl.\ upload 21/21\\
 TypeScript \texttt{strict} type check & -- & clean\\
 \bottomrule
 \end{tabularx}
@@ -136,7 +136,11 @@ TC-26 & NFR-04 & Reset code in prod (Production, no SMTP) & Code never in respon
 TC-27 & NFR-03 & Connectivity probe (\texttt{HEAD /}) & 200 (not 405) & As expected & P & test\_\allowbreak{}deploy\\
 TC-28 & NFR-01 & Search latency (50 req/intent) & p50 $<$ 300 ms & 37--47 ms & P & Table~\ref{tab:latency}\\
 TC-29 & NFR-03 & Load (32 clients, 960 req) & 0 wrong answers & 0 & P & Table~\ref{tab:loadresults}\\
-TC-30 & UI & Full student/HOD flow (Browser, real data) & All steps pass & 22/22 & P & college.e2e.mjs\\
+TC-30 & UI & Full student/HOD flow (Browser, real data) & All steps pass & 24/24 & P & college.e2e.mjs\\
+TC-31 & FR-11 & Count with filters (``How many labs do I have this week?'') & Count = distinct lab periods; only labs & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-32 & FR-11 & First/last (``When is my last class on Friday?'') & Same as max end of the Friday listing & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-33 & FR-11 & Day-wise ordering (``Which day is my busiest / finish earliest?'') & Days sorted by classes / finish time & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-34 & FR-02 & Composed plan keeps role scope (``Show my labs'', ``Show SE-B labs'') & Only own lab group; no other batch & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
 \bottomrule
 \end{longtable}
 \endgroup
@@ -179,10 +183,10 @@ False clash reports & 0 & 0 (2 reported, both genuine) & Yes\\
 Response time (median, 1 user) & $<$300 ms & 37--47 ms & Yes\\
 Throughput (4 workers) & $\geq$30 req/s & 46.5 req/s at 4 clients, 60.4 at 8 & Yes\\
 Reliability under concurrency & 100\% & 960/960 correct at 32 clients & Yes\\
-Functional correctness & 100\% tests pass & 159/159, 18/18, 22/22, 21/21 & Yes\\
+Functional correctness & 100\% tests pass & 168/168, 20/20, 24/24, 21/21 & Yes\\
 Extraction time (10 pages) & $<$10 s & 1.65 s & Yes\\
 Memory per API worker; DB size & $<$300 MB; $<$50 MB & $\approx$115 MB; 12 MB & Yes\\
-Supported question types & $\geq$25 & 30 intents (Q01--Q30) & Yes\\
+Supported question types & $\geq$25 & 30 specialised operations + composed plans (8 operations $\times$ filters $\times$ windows) & Yes\\
 \bottomrule
 \end{tabularx}
 \end{table}

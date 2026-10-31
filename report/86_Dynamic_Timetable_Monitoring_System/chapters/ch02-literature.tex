@@ -140,7 +140,7 @@ published college timetable.
 Reads published PDF/photo & -- & No & Partly & No & No & No & \textbf{Yes}\\
 Timetable semantics (labs, legends) & Human & Yes & No & No & Yes & Depends & \textbf{Yes}\\
 Role-based views & No & Limited & No & No & Yes & No & \textbf{Yes (5)}\\
-Plain-English questions & No & No & No & Limited & No & Yes & \textbf{Yes (30 intents)}\\
+Plain-English questions & No & No & No & Limited & No & Yes & \textbf{Yes (composed plans)}\\
 Reproducible, injection-safe answers & -- & -- & -- & -- & Yes & No & \textbf{Yes}\\
 Clash detection & No & At creation & No & No & Sometimes & No & \textbf{Yes, after publication}\\
 Version archive & Ad hoc & Files & No & No & Sometimes & No & \textbf{Yes, audited}\\
@@ -177,7 +177,7 @@ daily users.
 \item Admin review, correction and activation with an audited archive (closes limitation 3).
 \item Interval-based clash detection that understands parallel lab groups and elective options
       (closes limitation 4).
-\item A closed-registry NL engine (30 intents, 22 templates) with clarification instead of guessing
+\item A compositional NL query planner (typed plans compiled into parameterised queries) with clarification instead of guessing
       (closes limitation 5).
 \item Role dashboards and a single code base for Android, iOS and the web (closes limitation 1).
 \end{itemize}

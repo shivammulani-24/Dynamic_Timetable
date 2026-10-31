@@ -15,7 +15,7 @@
 │ api/v1/    auth · me · timetables · search · dashboard · notifications · admin                   │
 │ services/  context (server-resolved search context) · timetables (archives, primary) · uploads   │
 │            entries (scope filter, corrections) · conflicts · academics · users · mapping · audit │
-│ query/     nlp (rules) → registry (Q01–Q30) → engine (validation, clarification) → templates    │
+│ query/     nlp (rules) → planner (query plan) → engine (validation, clarification) → templates  │
 │ extraction/ pdf · ocr · office · geometric → grid → gridparse/cellparse → validate → pipeline    │
 └───────────────┬────────────────────────────────────────────────────────────┬────────────────────┘
                 │ SQLAlchemy 2 (bound parameters only)                       │ private file storage

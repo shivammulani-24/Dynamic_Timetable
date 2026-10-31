@@ -3,8 +3,11 @@
 A cross-platform (Android / iOS) mobile app with a centralised backend for a college timetable:
 role-based dashboards, **separate Institutional and Personal timetables**, timetable upload and
 extraction (PDF, Excel, CSV, Word, JPG/PNG with OCR), an auditable review/correction workflow, and a
-**deterministic natural-language query engine** that maps English questions to approved intents
-(Q01–Q30) and parameterised query templates (QT01–QT22) — never to free-form SQL.
+**deterministic compositional query planner** that turns English questions into typed query plans
+(operation + filters + date/week + time window + sort, e.g. "How many labs do I have this week?",
+"Which day is my busiest?") compiled into parameterised queries with the caller's role scope —
+never into free-form SQL. Specialised operations (QT01–QT22) handle free rooms, professor free time,
+archives and the like; composed plans run on template QT23.
 
 ```
 React Native (Expo SDK 58, TypeScript strict)  ──HTTPS──▶  FastAPI (Python 3.13)
@@ -21,7 +24,7 @@ React Native (Expo SDK 58, TypeScript strict)  ──HTTPS──▶  FastAPI (Py
 |---|---|
 | `backend/app/` | FastAPI app: `api/v1` routers, `security` (auth, RBAC policy), `services`, `extraction`, `query`, `worker.py`, `seed.py` (synthetic demo), `seed_college.py` (the college's real PDF) |
 | `backend/alembic/` | Database migrations (`0001` schema, `0002` reference data, `0003` time-uncertainty flag) |
-| `backend/tests/` | 145 pytest tests (auth, extraction spec PDF-01…16, real college PDF regression + end-to-end on it, domains/isolation, Q01–Q30, academics, concurrency) |
+| `backend/tests/` | 168 pytest tests (auth, extraction spec PDF-01…16, real college PDF regression + end-to-end on it, domains/isolation, specialised operations Q01–Q30, composed query plans Q31, academics, concurrency) |
 | `mobile/src/app/` | Expo Router screens (auth, role tabs, search, timetable, archives, upload, review, admin) |
 | `mobile/src/{api,state,components,theme,lib}` | Typed API client, auth/domain state, design system, helpers |
 | `mobile/__tests__/`, `mobile/e2e/` | Jest unit/component tests; Playwright end-to-end runs against the real API (synthetic demo + real college timetable) |
@@ -100,10 +103,10 @@ port 8000 on the same machine (`mobile/src/lib/config.ts`). Run the API on `0.0.
 ## Tests (results from the latest run)
 
 ```bash
-cd backend && .venv/bin/python -m pytest -q          # 145 passed
-cd mobile  && npx tsc --noEmit && npx jest            # typecheck clean · 14 passed
+cd backend && .venv/bin/python -m pytest -q          # 168 passed
+cd mobile  && npx tsc --noEmit && npx jest            # typecheck clean · 20 passed
 cd mobile  && npm run test:e2e -- http://localhost:8081 ./e2e-screens            # 21/21 (after `seed`)
-cd mobile  && npm run test:e2e:college -- http://localhost:8081 ./e2e-college    # 22/22 (after `seed-college`)
+cd mobile  && npm run test:e2e:college -- http://localhost:8081 ./e2e-college    # 24/24 (after `seed-college`)
 python scripts/load_smoke.py http://localhost:8000 24 15                 # concurrency smoke (not a benchmark)
 ```
 

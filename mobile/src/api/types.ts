@@ -225,7 +225,9 @@ export type ResultType =
   | 'SCHEDULED_LOCATION'
   | 'TIMETABLE'
   | 'TIMETABLES'
-  | 'ACTION';
+  | 'ACTION'
+  | 'AGGREGATE'
+  | 'DAY_SUMMARY';
 
 export interface SearchResponse {
   status: StatusCode;

@@ -1,9 +1,54 @@
 # Natural-language query engine
 
-**What it is:** a deterministic, rule-based interpreter (tokenisation, controlled synonyms, ordered
-regular-expression rules, vocabulary matching). It is *not* a trained machine-learning model and it
-does not use an LLM. Its only outputs are a registered intent name and typed parameters; everything
-else (identity, role, domain, timetable, timezone, *now*) is resolved by the server.
+**What it is:** a deterministic, rule-based **compositional query planner** (tokenisation, controlled
+synonyms, phrase rules, vocabulary matching). It is *not* a trained machine-learning model and it does
+not use an LLM. A question is turned into a typed **query plan**; everything else (identity, role,
+domain, timetable, timezone, *now*) is resolved by the server, and the plan is compiled into
+parameterised SQL with the caller's role scope added. No SQL is ever built from the question text.
+
+## Query plans (`app/query/planner.py`, executor `app/query/composer.py`)
+
+A question is not matched to one fixed question type. The planner recognises independent pieces and
+combines them:
+
+| Piece | Values |
+|---|---|
+| **operation** | `LIST`, `COUNT`, `EXISTS`, `TOTAL_HOURS`, `FIRST`, `LAST`, `NEXT`, `PER_DAY` — or a specialised operation (below) |
+| **filters** | me (default), batch, professor, room, course, floor; **kind** = `LAB` / `LECTURE` |
+| **when** | a date (today, tomorrow, 12 Nov …), a weekday (recurring), this/next week, or the whole weekly timetable |
+| **window** | `AT`, `AFTER`, `BEFORE`, `BETWEEN` a time, `AFTER_LUNCH` (from the caller's own section) |
+| **sort / metric** (for `PER_DAY`) | `MOST`/`LEAST` classes or hours, `EARLIEST`/`LATEST` start or finish |
+
+Examples (all answered from the real college timetable):
+
+| Question | Plan |
+|---|---|
+| How many labs do I have this week? | `COUNT`, kind `LAB`, week `this` |
+| When is my last class on Friday? | `LAST`, weekday 5 |
+| Which day is my busiest? | `PER_DAY`, metric `CLASSES`, sort `MOST` |
+| Which day do I finish earliest? | `PER_DAY`, metric `LAST_END`, sort `EARLIEST` |
+| How many hours of lectures on Wednesday? | `TOTAL_HOURS`, kind `LECTURE`, weekday 3 |
+| Do I have any lab on Thursday? | `EXISTS`, kind `LAB`, weekday 4 |
+| Show my lectures on Tuesday / Show my labs | `LIST` + kind |
+| Do I have classes before 11 am on Tuesday? | `LIST`, window `BEFORE 11:00`, weekday 2 |
+| How many lectures after lunch on Monday? | `COUNT`, kind `LECTURE`, window `AFTER_LUNCH` |
+| What is my next lab? | `NEXT`, kind `LAB` |
+| How many subjects do I have? | `COUNT` of distinct courses |
+| How many professors teach my batch? / free rooms on floor 5 at 10 am? | `COUNT` over a specialised operation |
+
+**Specialised operations.** Questions that need dedicated logic keep their proven operations
+(the former intents Q01–Q30): next/current class, after lunch, am I free, free rooms, room status,
+professor schedule / location / courses / free time, professors for a batch, floor activity,
+class details, archives, primary timetable, and the cross-domain rejection. The plan then names that
+operation (`composed: false`). When a composable piece appears — an aggregate, an ordering, a
+lab/lecture filter, a "before" window — the planner produces a composed plan (`COMPOSED_QUERY`, Q31)
+executed by template **QT23**, built from the same building blocks (`Q.base()` with role scope,
+`on_date`, `on_dow`, `time_ok`, entity filters).
+
+Rules kept by the composed executor: parallel options in one period (lab groups, electives) count
+once (and say so); uncertain/missing times are excluded from time-based answers with a warning;
+a.m./p.m., dates and names are clarified, never guessed; counts of zero are valid answers; every
+response carries `meta.plan`, so the interpretation is visible and testable.
 
 ## Pipeline (`app/query/engine.py`)
 
@@ -17,7 +62,8 @@ else (identity, role, domain, timetable, timezone, *now*) is resolved by the ser
 5. `resolve_context` → domain + timetable + timezone (see architecture doc).
 6. Load the vocabulary of **this timetable only** and find unanchored mentions by exact n-gram
    match (`find all dbms classes` → course `DBMS`).
-7. Classify (`nlp.classify`) — ordered rules using keywords and which entity types were found.
+7. Classify (`nlp.classify`) — ordered rules recognise a specialised operation, then
+   **plan** (`planner.build_plan`) — combine operation, filters, kind, when, window and sort into a query plan.
 8. Enforce: intent supported in this domain (else `UNSUPPORTED_INTENT` with reason), role allowed
    (`security/policy.py`), student/staff scope set up (else `SETUP_REQUIRED` clarification).
 9. Handler validates required parameters and raises a **clarification** when something is missing

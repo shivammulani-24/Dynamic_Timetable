@@ -55,7 +55,7 @@
   ],
   [
    "p",
-   "• Question engine without generated SQL: 30 intents → 22 safe templates"
+   "• Compositional query planner: question → typed plan → safe SQL (no fixed question list)"
   ],
   [
    "h",
@@ -97,7 +97,7 @@
   ],
   [
    "p",
-   "5. Question → 1 of 30 intents → clarify if ambiguous → 1 of 22 safe queries."
+   "5. Question → query plan (count/first/last/per-day + filters) → clarify if ambiguous → safe SQL."
   ],
   [
    "p",
@@ -125,7 +125,7 @@
   ],
   [
    "p",
-   "• 10-page PDF extracted in 1.65 s; 159 + 18 automated tests and end-to-end tests pass"
+   "• 10-page PDF extracted in 1.65 s; 168 + 20 automated tests and end-to-end tests pass"
   ],
   [
    "p",

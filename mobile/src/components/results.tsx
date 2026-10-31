@@ -182,6 +182,54 @@ export function SearchResult({ res, onChoose }: { res: SearchResponse; onChoose:
             </Row>
           </Card>
         ));
+      case 'AGGREGATE':
+        return res.results.map((a: any, i: number) => (
+          <View key={i} style={{ gap: 10 }}>
+            <Card>
+              <Row gap={12} style={{ alignItems: 'center' }}>
+                <Text variant="display" style={{ color: t.colors.primary }}>
+                  {String(a.value)}
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text variant="heading">{a.unit}</Text>
+                  <Text variant="caption" muted>
+                    {a.label}
+                  </Text>
+                </View>
+              </Row>
+              {a.breakdown?.length ? (
+                <Row wrap gap={8} style={{ marginTop: 10 }}>
+                  {a.breakdown.map((b: any) => (
+                    <Pill key={b.day} label={`${b.day}: ${b.value}`} />
+                  ))}
+                </Row>
+              ) : null}
+              {a.labels?.length ? (
+                <Row wrap gap={8} style={{ marginTop: 10 }}>
+                  {a.labels.slice(0, 30).map((l: string) => (
+                    <Pill key={l} label={l} />
+                  ))}
+                </Row>
+              ) : null}
+            </Card>
+            {a.entries?.length ? <EntriesByDate entries={a.entries as Entry[]} domain={domain} ttId={ttId} /> : null}
+          </View>
+        ));
+      case 'DAY_SUMMARY':
+        return res.results.map((d: any, i: number) => (
+          <Card key={d.day}>
+            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text variant="heading">{d.day}</Text>
+              {i === 0 && res.meta?.plan?.sort ? <Pill tone="primary" icon="trophy-outline" label="Top" /> : null}
+            </Row>
+            <Text variant="caption" muted>
+              {[plural(d.classes, 'class', 'classes'), d.labs ? plural(d.labs, 'lab') : null, `${d.hours} h`,
+                d.first_start && d.last_end ? fmtRange(d.first_start, d.last_end, h24) : null]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          </Card>
+        ));
       case 'ACTION':
         return <Banner tone="success" icon="checkmark-circle" title={res.message} />;
       default:

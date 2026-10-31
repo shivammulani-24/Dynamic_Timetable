@@ -16,7 +16,7 @@ Extraction tuned on real college PDF (labs, legends, noon row, BE combined, LLC)
 Validation, review \& correction (audited), activation, archives & Implemented, tested & test\_uploads (13)\\
 Conflict detection (professor / room / batch) & Implemented, tested & 2 genuine clashes found\\
 Role dashboards, weekly view, class details & Implemented, e2e tested & Figures \ref{fig:screens1}--\ref{fig:screens2}\\
-Natural-language search, 30 intents, 22 templates, clarifications & Implemented, tested & test\_query\_engine (57)\\
+Natural-language search: compositional query plans (count, first/last, per day, lab/lecture, before/after) plus specialised operations, clarifications & Implemented, tested & test\_query\_engine (59), composed tests (7)\\
 Personal timetables, strictly separate & Implemented, tested & domain tests\\
 Promotion, fresher registration, master data, users, audit log & Implemented, tested & test\_academics (13)\\
 Android, iPhone (Expo Go), laptop browser & Implemented; web e2e; device tried & Screenshots\\
@@ -76,6 +76,15 @@ app (web build, phone-sized viewport) against the real API, with the college's t
 \begin{subfigure}[t]{0.24\textwidth}\centering\includegraphics[width=\linewidth]{figures/screens/real-timetable-summary.png}\caption{Real PDF: 453 entries, 452 verified, 10 sections}\end{subfigure}
 \caption{Administrator workflow}
 \label{fig:screensadmin}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.31\textwidth}\centering\includegraphics[width=\linewidth]{figures/screens/composed-count.png}\caption{``How many labs do I have this week?'': count with per-day breakdown}\end{subfigure}\hfill
+\begin{subfigure}[t]{0.31\textwidth}\centering\includegraphics[width=\linewidth]{figures/screens/composed-busiest.png}\caption{``Which day is my busiest?'': day-wise summary}\end{subfigure}\hfill
+\begin{subfigure}[t]{0.31\textwidth}\centering\includegraphics[width=\linewidth]{figures/screens/composed-last.png}\caption{``When is my last class on Friday?''}\end{subfigure}
+\caption{Composed query plans answered from the real timetable (TE-B4 student)}
+\label{fig:screenscomposed}
 \end{figure}
 
 \begin{figure}[H]
@@ -160,12 +169,12 @@ Lab-group view (A1 vs A2) & read the stacked cells carefully & filtered automati
 O1 & 99.8\% verified on the real PDF; uncertain values flagged (TC-07, TC-09) & Achieved\\
 O2 & PDF, scanned PDF/photo (OCR), XLSX/XLS, CSV, DOCX/DOC through one pipeline (TC-04, TC-10) & Achieved\\
 O3 & Five roles, server-side policy, role tests (TC-03), dashboards (Fig.~\ref{fig:screens1}, \ref{fig:screens2}) & Achieved\\
-O4 & 30 intents with clarification (TC-16--TC-19) & Achieved\\
+O4 & Specialised operations plus composed query plans (counts, first/last, day-wise, lab/lecture), with clarification (TC-16--TC-19, TC-31--TC-34) & Achieved\\
 O5 & 2 genuine clashes, 0 false reports (TC-21) & Achieved\\
 O6 & Separate tables; IDOR and isolation tests (TC-22); archives & Achieved\\
 O7 & p50 37--47 ms; 0 wrong answers at 32 clients (TC-28, TC-29) & Achieved (dev hardware)\\
 O8 & Android/iPhone via Expo Go, laptop browser, Render demo & Achieved; store builds pending\\
-O9 & 159 + 18 + 43 e2e steps passing & Achieved\\
+O9 & 168 + 20 + 45 e2e steps passing & Achieved\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -182,8 +191,10 @@ O9 & 159 + 18 + 43 e2e steps passing & Achieved\\
 \item \textbf{Unexpected observation:} a small connectivity check (\texttt{HEAD /}) made the whole
       production web app appear offline. This shows why end-to-end tests in a production-like
       configuration matter.
-\item \textbf{Rules beat a black box here.} For a closed domain with about 30 question types, rule-based
-      interpretation gave reproducible answers in about 40~ms with no API cost and no injection risk.
+\item \textbf{Rules beat a black box here, if they compose.} A fixed list of question types felt limiting
+      (counts, ``busiest day'', ``last lab on Friday'' were refused). Making the rules compose into a query
+      plan removed most of that limit while keeping reproducible answers in about 40~ms, no API cost and
+      no injection risk.
 \end{itemize}
 
 \subsection{Practical Applicability}

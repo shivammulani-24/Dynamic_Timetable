@@ -100,12 +100,20 @@ and say: *"LLC slots have no teacher or room in the PDF, so we show them without
 | `Where is Prof. Devadkar on Monday at 10 am?` | Room 508, DBMS | "It says *scheduled* location. We don't track people, we only read the timetable." |
 | `Which rooms are free at 11 am on Monday?` | List of free rooms | "Useful for extra lectures. A room is free if no class overlaps that time." |
 | `Who teaches Software Engineering?` | All SE classes with teacher | |
+| `How many labs do I have this week?` | **8 labs** with a per-day breakdown | "This isn't a stored question. The planner combines *count* + *labs* + *this week* into a query plan." |
+| `Which day is my busiest?` | Day-wise list, **Wednesday** on top | "Same engine: *per day* + *most classes*. It also tells you which days have no classes." |
+| `When is my last class on Friday?` | Last class and when you're done | "*last* + *Friday*. Try 'Which day do I finish earliest?' as well." |
+| `Do I have classes before 11 am on Tuesday?` | Classes starting before 11 | "A *before* time window. A bare '11' would make it ask a.m. or p.m." |
 | `Compare my personal and college timetable` | Politely refused | "Personal and college data are deliberately kept separate, so this is not allowed." |
 
 > **Say (important, examiners like this):** "This is **not ChatGPT**. We don't send the question to
-> an AI and we never build SQL from the user's text. The question is matched by rules to one of
-> **30 fixed question types**, and each one runs one of **22 pre-written, parameterised queries**.
-> So answers are always the same and correct, and SQL injection is impossible by design. We read
+> an AI and we never build SQL from the user's text. A **compositional planner** splits the question
+> into pieces (what to compute: list, count, first/last, total hours, per day; filters: me, batch,
+> professor, room, subject, lab or lecture; when: a day, a date or this week; a time window; an order)
+> and builds a **typed query plan**. The server adds your role scope and compiles the plan into
+> parameterised SQL. So questions aren't limited to a fixed list, answers are always the same and
+> correct, and SQL injection is impossible by design. Every answer even carries its plan, so we can
+> show exactly how it was understood. We read
 > research showing that LLM text-to-SQL can be tricked by prompt injection, which is why we chose
 > this approach."
 
@@ -163,7 +171,7 @@ Wait for **Needs review** (about 10–60 s online), then open it:
 
 > **Say:** "To summarise: one React Native app for Android, iPhone and laptop; a FastAPI back end;
 > PostgreSQL; a background worker; an extraction pipeline with OCR; and a safe rule-based question
-> engine. It is backed by **159 automated back-end tests, 18 app tests and end-to-end browser tests
+> engine. It is backed by **168 automated back-end tests, 20 app tests and end-to-end browser tests
 > that all pass**. Measured search time is about **40–50 ms** for one user. With 4 server workers
 > on a laptop it handled about **60 searches per second** with **zero wrong answers at 32
 > simultaneous users**. It's deployed online for free. Next steps are a load test on real
@@ -188,7 +196,8 @@ Wait for **Needs review** (about 10–60 s online), then open it:
 
 | Question | Answer |
 |---|---|
-| **Is this ChatGPT / an AI model?** | No. It is a rule-based engine: 30 intents and 22 parameterised SQL templates. It is deterministic, reproducible and injection-safe, and it needs no paid API. |
+| **Is this ChatGPT / an AI model?** | No. It is a rule-based **compositional query planner**: the question becomes a typed plan (operation + filters + time) that the server compiles into parameterised SQL with your role scope. It is deterministic, reproducible and injection-safe, and it needs no paid API. |
+| **Are you limited to fixed questions?** | No longer. Earlier versions had 30 fixed question types; now pieces combine freely (count / first / last / busiest day / lab or lecture / before or after a time / this week). Specialised operations (free rooms, professor free time, archives) are reused where they need special logic. An LLM could be added later only to *suggest* a plan, never to touch the database. |
 | **How do you read the PDF?** | PyMuPDF gives text with coordinates and ruled tables (it keeps merged 2-hour lab cells). We find the time row, day rows and sections, split stacked lab batches, expand the page's legend and validate everything. Scanned pages and photos go through Tesseract OCR. |
 | **What if the PDF format changes?** | Each entry gets a status. Anything the parser isn't sure about becomes *Unverified* or *Incomplete* and goes to the Admin's review screen. The parser is versioned (`tt-grid-parser/1.2.0`) and has regression tests on the real PDF. |
 | **Accuracy?** | On the real 10-page PDF, 452 of 453 classes were verified automatically, and the remaining one has no time in the PDF. Precision/recall against a hand-labelled sample is future work, and we say so honestly. |

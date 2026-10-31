@@ -18,7 +18,9 @@ The design was translated into software \emph{risk first}, from the inside out:
 \item \textbf{Foundation:} schema, migrations, authentication, RBAC and admin master data, so every
       later feature was secure from the start.
 \item \textbf{Extraction engine:} the riskiest part, built and tuned on the real college PDF early.
-\item \textbf{Query engine:} the intent registry and templates, tested intent by intent (Q01--Q30).
+\item \textbf{Query engine:} first specialised operations and templates, tested one by one (Q01--Q30);
+      then generalised into a compositional query planner (Q31, template QT23) so that questions are not
+      limited to a fixed list.
 \item \textbf{Mobile app} on top of a stable, documented API (OpenAPI).
 \item \textbf{Hardening:} concurrency tests, a security audit, the real-PDF rules from the college,
       laptop/web support, the SDK upgrade and free cloud deployment.
@@ -54,11 +56,17 @@ Claims jobs (Listing~\ref{lst:claim}), runs the pipeline, persists entries, comp
 status, notifies the uploader, and retries unexpected failures. It can run as a separate process
 (\texttt{python -m app.worker}) or as a thread inside the API on the free tier.
 
-\paragraph{M5. Query engine (\texttt{app/query}).} Files \texttt{nlp.py}, \texttt{vocab.py}, \texttt{registry.py}, \texttt{engine.py} and \texttt{templates.py}.
-Implements Algorithm~\ref{alg:query}. \texttt{registry.py} declares the 30 intents with their allowed
-domains, roles, required parameters and templates. \texttt{templates.py} holds the 22 parameterised
-SQLAlchemy queries. \emph{Tests:} 57 tests in \texttt{test\_query\_engine.py}, including SQL-injection text
-and unknown parameters.
+\paragraph{M5. Query planner (\texttt{app/query}).} Files \texttt{nlp.py}, \texttt{vocab.py}, \texttt{planner.py},
+\texttt{composer.py}, \texttt{registry.py}, \texttt{engine.py} and \texttt{templates.py}.
+Implements Algorithms~\ref{alg:plan} and~\ref{alg:query}. \texttt{planner.py} turns the parsed question
+into a typed \texttt{QueryPlan}; \texttt{composer.py} compiles composed plans (count, exists, total
+hours, first, last, next, per-day summaries, lab/lecture and before/after/between filters) from the
+shared building blocks of \texttt{templates.py}, always starting from the role-scoped base query.
+\texttt{registry.py} declares the specialised operations (Q01--Q30, templates QT01--QT22) and the
+composed operation (Q31, QT23) with their domains, parameters and plan vocabulary. Every answer carries
+its plan in \texttt{meta.plan}, so the interpretation is visible. \emph{Tests:} 59 tests in
+\texttt{test\_query\_engine.py} (including SQL-injection text and unknown parameters) and 7 composed-plan
+tests on the real timetable in \texttt{test\_college\_seed.py}.
 
 \paragraph{M6. Conflicts (\texttt{services/conflicts.py}).}
 Implements Algorithm~\ref{alg:conflict} and returns \textsc{Confirmed}/\textsc{Possible} conflicts,
@@ -178,6 +186,8 @@ each request gets a session that commits or rolls back as one transaction.
 \texttt{e8f74c3} & 2026-10-21 & Hide admin review notices from students; fix archive banner & 12 / +102\\
 \texttt{326b8e6} & 2026-10-25 & Upgrade the app to Expo SDK 58 & 8 / +9018 (lockfile)\\
 \texttt{8093f09} & 2026-10-25 & Free online demo (Render) + fix account takeover via password reset (P0-1) & 25 / +444\\
+\texttt{ccfb97d} & 2026-10-27 & Mini project report (LaTeX), A3 poster and ESE demo guide & report\\
+latest & 2026-10-31 & Compositional query planner (query plans, composed executor QT23, app result cards, tests) & see Git log\\
 \bottomrule
 \end{longtable}
 \endgroup

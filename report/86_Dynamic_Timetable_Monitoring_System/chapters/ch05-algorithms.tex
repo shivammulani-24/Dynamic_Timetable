@@ -13,7 +13,7 @@
 C1 & Time-row resolution & Wrong a.m./p.m.\ makes every class in the row wrong & Per upload\\
 C2 & Cell parsing (stacked labs, rooms, legends) & Determines subject, teacher, room and lab group of every entry & Per upload\\
 C3 & Conflict detection & Must find genuine clashes and ignore intended overlaps & Per upload / on demand\\
-C4 & Intent classification & Every question must map to exactly one approved intent & Every search\\
+C4 & Query planning & Every question must become one valid, typed query plan (or a clarification) & Every search\\
 C5 & Entity resolution & ``Desai'', ``DBMS'', ``508'' must resolve only within the selected timetable & Every search\\
 C6 & Next class / free time / free rooms & Most frequent dashboard operations; must be fast and correct & Every app open\\
 C7 & Job claiming & Several workers must never process the same upload twice & Per upload\\
@@ -114,7 +114,37 @@ On the real PDF a naive pairwise check reported 542 overlaps. Adding the intende
 two refinement steps (first 25, then 2) left exactly the \textbf{2 genuine clashes}, which we
 confirmed by hand against the PDF (Section~10.3).
 
-\subsubsection{C4 and C5: Query interpretation}
+\subsubsection{C4 and C5: Query planning and interpretation}
+The query engine does not match a whole question to one of a fixed list of question types. A
+\emph{planner} recognises independent pieces of the question and combines them into a typed
+\textbf{query plan}: an \emph{operation} (\textsc{List}, \textsc{Count}, \textsc{Exists},
+\textsc{Total\_Hours}, \textsc{First}, \textsc{Last}, \textsc{Next}, \textsc{Per\_Day}), \emph{filters}
+(me, batch, professor, room, course; lab or lecture), \emph{when} (a date, a weekday, this/next week
+or the whole weekly timetable), a \emph{time window} (at, after, before, between, after lunch) and,
+for day-wise questions, a \emph{metric and sort} (most/least classes or hours, earliest/latest start
+or finish). For example, ``Which day do I finish earliest?'' becomes
+\texttt{\{operation: PER\_DAY, metric: LAST\_END, sort: EARLIEST\}} and ``How many labs do I have
+this week?'' becomes \texttt{\{operation: COUNT, kind: LAB, when: \{week: this\}\}}.
+Questions that need dedicated logic (free rooms, a professor's free time or scheduled location,
+room status, archives \ldots) keep their specialised operations (templates QT01--QT22); all other
+plans are compiled by the composed executor (template QT23) from the same building blocks.
+
+\begin{algorithm}[H]
+\caption{Build a query plan from the parsed question}\label{alg:plan}
+\begin{algorithmic}[1]
+\Require parsed question $p$, specialised operation $S$ recognised by the rule cascade (or $\bot$)
+\Ensure plan $P$
+\If{$S$ is pinned (archives, primary, cross-domain, time-until)} \Return $P(S)$ \EndIf
+\State $k \gets$ \textsc{Lab} / \textsc{Lecture} from words (``lab'', ``practical'' / ``lecture'', ``theory''); $\bot$ otherwise
+\State $w \gets$ window from times and words (between, before, after, after lunch, at)
+\State $o \gets$ \textsc{Total\_Hours} (``total hours'') $\vee$ \textsc{Count} (``how many'') $\vee$ \textsc{Per\_Day} (``which day'', ``busiest'') $\vee$ \textsc{Next} / \textsc{First} / \textsc{Last} $\vee$ \textsc{Exists} (``any lab'')
+\If{$o = $ \textsc{Per\_Day}} choose metric (finish $\rightarrow$ \textsc{Last\_End}, start $\rightarrow$ \textsc{First\_Start}, else classes/hours) and sort (most/least, earliest/latest) \EndIf
+\If{$o = $ \textsc{Count} and $S$ returns rooms/professors/courses} \Return $P(\textsc{Count}$ over $S)$ \EndIf
+\If{$o = \bot$ and $k = \bot$ and $w \neq$ \textsc{Before}} \Return $P(S)$ \Comment{specialised operation unchanged} \EndIf
+\State \Return composed $P(o \text{ or } \textsc{List}, k, w, \text{filters}, \text{when}, \text{sort})$
+\end{algorithmic}
+\end{algorithm}
+
 \begin{algorithm}[H]
 \caption{Answer a natural-language question}\label{alg:query}
 \begin{algorithmic}[1]
@@ -125,13 +155,14 @@ confirmed by hand against the PDF (Section~10.3).
 \State $\mathit{ctx} \gets \textsc{ResolveContext}(u, \text{hint})$ \Comment{domain, timetable, time zone, now; server side}
 \State $V \gets$ vocabulary of labels of \emph{this} timetable only
 \State $M \gets \textsc{Scan}(p, V)$: longest-first n-gram match ($n = 4..1$) of unanchored mentions
-\State $I \gets \textsc{Classify}(p, M)$: ordered rules; first match wins
+\State $S \gets \textsc{Classify}(p, M)$: ordered rules recognise a specialised operation (or $\bot$)
+\State $I \gets \textsc{BuildPlan}(p, S)$ (Algorithm~\ref{alg:plan})
 \If{$I = \bot$} \Return \texttt{UNSUPPORTED\_INTENT} with example questions \EndIf
 \State check $I$ allowed for role and domain; check student/staff mapping exists
 \ForAll{required parameter $\pi$ of $I$}
    \If{$\pi$ missing or ambiguous (a.m./p.m., date, several entities)} \Return \texttt{CLARIFICATION\_REQUIRED} with choices \EndIf
 \EndFor
-\State $\mathit{rows} \gets$ execute template $T(I)$ with bound, typed parameters and role scope
+\State $\mathit{rows} \gets$ compile $I$: specialised template, or composed QT23 (days $\times$ filters $\times$ window, then count / sum / first / last / per-day), always with bound parameters and role scope
 \State \Return \texttt{OK} / \texttt{NO\_MATCH} / \texttt{DATA\_UNVERIFIED} with warnings
 \end{algorithmic}
 \end{algorithm}
@@ -206,7 +237,7 @@ SELECT * FROM processing_job
 \node[blk,right=12mm of x,fill=red!10] (x1) {UNSUPPORTED (Q30)};
 \node[blk,below=of x] (c) {Resolve context (server)};
 \node[blk,below=of c] (v) {Scan vocabulary of this timetable};
-\node[dec,below=of v] (k) {intent\\found?};
+\node[dec,below=of v] (k) {plan\\built?};
 \node[blk,right=12mm of k,fill=red!10] (k1) {UNSUPPORTED +\\examples};
 \node[dec,below=of k] (r) {allowed for\\role/domain?};
 \node[blk,right=12mm of r,fill=red!10] (r1) {Refuse (reason)};
@@ -241,7 +272,7 @@ Tree (parent pointer) & Batch hierarchy SE $\rightarrow$ SE-A $\rightarrow$ SE-A
 Queue (FIFO) & \texttt{processing\_job} ordered by \texttt{created\_at} & Fair processing order; persistent across crashes\\
 B-tree index & PostgreSQL composite indexes & $O(\log n)$ range scans on (timetable, day, start)\\
 Search tree of assignments & Time-row backtracking (Alg.~\ref{alg:time}) & Explores consistent readings; pruned by ordering constraint\\
-Immutable registry (tuple/dict) & Intents Q01--Q30 and templates QT01--QT22 & Closed set; unknown intents cannot be executed\\
+Immutable registry (tuple/dict) & Operations Q01--Q31, templates QT01--QT23, plan vocabulary & Closed set; unknown operations or plan values cannot be executed\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -259,7 +290,7 @@ Immutable registry (tuple/dict) & Intents Q01--Q30 and templates QT01--QT22 & Cl
 Clash detection & All pairs, $O(n^2)$ & Group by resource (hash) + sort + sweep & Same result, $O(n\log n + m)$; simpler to explain intended-overlap rules per group\\
 Clash detection & Interval tree & Sorted sweep & Groups are small (tens of entries); a tree adds code without measurable gain\\
 Time labels & Trust printed a.m./p.m.\ & Constrained backtracking with uniqueness & Printed markers are wrong in the real PDF; uniqueness gives provable certainty\\
-Question understanding & LLM text-to-SQL; trained intent classifier & Ordered rules + vocabulary scan + templates & Deterministic, explainable, injection-safe, no training data or API cost~\cite{androutsopoulos1995,pedro2023}\\
+Question understanding & LLM text-to-SQL; trained intent classifier; one fixed rule per question & Compositional query plan (independent rules per piece) + vocabulary scan + compiled templates & Deterministic, explainable, injection-safe, no training data or API cost~\cite{androutsopoulos1995,pedro2023}\\
 Entity matching & Fuzzy auto-select & Exact $\rightarrow$ unique word $\rightarrow$ fuzzy \emph{suggestions} & Avoids silently picking the wrong professor\\
 Job distribution & Redis/RabbitMQ & PostgreSQL \texttt{SKIP LOCKED} & One less service; job creation is transactional with the upload\\
 Table extraction & Deep-learning table detector & PyMuPDF ruled tables + geometric fallback & Text PDFs are exact; no GPU; explainable failures\\
@@ -285,6 +316,8 @@ Cell parsing (whole PDF) & $O(C \cdot \ell)$ & $C$ cells, $\ell$ tokens per cell
 Conflict detection & $O(n \log n + m)$ average & Hash grouping $O(n)$, sort per group, sweep with early break. Worst case (all overlapping in one group) $O(n^2)$\\
 Division vs sub-group check & $O(d^2)$ per day & $d$ entries with batch label on a day; acceptable for $d \approx 100$, see Section 5.8\\
 Parse + classify question & $O(w)$ & Fixed number of regular expressions\\
+Build query plan & $O(w)$ & One pass of a fixed set of piece rules (operation, kind, window, sort)\\
+Execute composed plan & $O(D\log n + k\log k)$ & $D \leq 7$ day range scans on the index; $k$ matching entries sorted for slots, first/last and per-day sums\\
 Vocabulary scan & $O(4w)$ lookups & n-gram sizes 4..1, hash index built in $O(|V|)$\\
 Next class & $O(H \log n)$ & At most $H{=}7$ index range scans\\
 Free rooms & $O(\log n + k + R)$ & $k$ entries at that time, set difference over $R$ rooms\\

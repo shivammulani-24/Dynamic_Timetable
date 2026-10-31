@@ -94,6 +94,14 @@ await page.getByRole('textbox', { name: 'Question' }).fill('Do I have classes af
 await page.keyboard.press('Enter');
 check('after-lunch answer uses SE lunch (2:15 PM)', await visible('Computer Organization', 15000));
 await shot('05-after-lunch');
+await page.getByRole('textbox', { name: 'Question' }).fill('How many labs do I have this week?');
+await page.keyboard.press('Enter');
+check('composed count answer (labs this week)', await visible(/You have \d+ labs this week/, 15000));
+await shot('05b-composed-count');
+await page.getByRole('textbox', { name: 'Question' }).fill('Which day is my busiest?');
+await page.keyboard.press('Enter');
+check('composed day summary (busiest day)', await visible(/Busiest day:/, 15000));
+await shot('05c-composed-busiest');
 await signOut();
 
 // ---------------------------------------------------------------- BE student (combined BE A–D page)

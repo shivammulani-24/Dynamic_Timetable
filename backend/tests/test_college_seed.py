@@ -148,3 +148,76 @@ def test_choosing_the_official_timetable_is_not_archive_browsing(client, college
 def test_faculty_missing_from_legends_shown_by_code(client):
     j = ask(client, "student.te.a1", "What are my classes on Monday?")
     assert not any("legend" in (x["professor"] or "") for x in j["results"])
+
+
+# ---------------------------------------------------------------- composed query plans (Q31 / QT23)
+
+def _slots(items):
+    return {(i.get("date") or i["day_of_week"], i["start_time"], i["end_time"]) for i in items}
+
+
+def test_composed_count_labs_this_week(client):
+    j = ask(client, "student.te.b4", "How many labs do I have this week?")
+    assert j["intent"] == "COMPOSED_QUERY" and j["intent_id"] == "Q31" and j["result_type"] == "AGGREGATE", j
+    agg = j["results"][0]
+    assert agg["metric"] == "COUNT" and agg["value"] == len(_slots(agg["entries"])) > 0
+    assert all("lab" in f"{e['course']} {e['course_code']}".lower() for e in agg["entries"])
+    assert j["meta"]["plan"] == {"operation": "COUNT", "composed": True, "kind": "LAB", "filters": {"self": True},
+                                 "when": {"week": "this"}}
+
+
+def test_composed_last_class_matches_the_day_listing(client):
+    day = ask(client, "student.te.b4", "What are my classes on Friday?")["results"]
+    j = ask(client, "student.te.b4", "When is my last class on Friday?")
+    assert j["status"] == "OK" and j["intent"] == "COMPOSED_QUERY"
+    assert j["results"][0]["end_time"] == max(x["end_time"] for x in day if x["end_time"])
+    first = ask(client, "student.te.b4", "When is my first class on Friday?")
+    assert first["results"][0]["start_time"] == min(x["start_time"] for x in day if x["start_time"])
+
+
+def test_composed_busiest_day_is_sorted(client):
+    j = ask(client, "student.te.b4", "Which day is my busiest?")
+    assert j["result_type"] == "DAY_SUMMARY"
+    counts = [d["classes"] for d in j["results"]]
+    assert counts == sorted(counts, reverse=True) and j["message"].startswith(f"Busiest day: {j['results'][0]['day']}")
+    fin = ask(client, "student.te.b4", "Which day do I finish earliest?")
+    ends = [d["last_end"] for d in fin["results"]]
+    assert fin["meta"]["plan"]["metric"] == "LAST_END" and ends == sorted(ends)
+
+
+def test_composed_lab_filter_keeps_the_lab_group_scope(client):
+    j = ask(client, "student.se.a1", "Show my labs")
+    assert j["intent"] == "COMPOSED_QUERY" and j["results"]
+    assert all("lab" in f"{e['course']} {e['course_code']}".lower() for e in j["results"])
+    assert not any(e["batch"] in ("SE-A2", "SE-A3", "SE-A4", "SE-B1", "SE-C1") for e in j["results"])
+    other = ask(client, "student.se.a1", "Show SE-B labs on Monday", ok=False)
+    assert not any((e.get("batch") or "").startswith("SE-B") for e in other.get("results", []))
+
+
+def test_composed_exists_and_counting_other_things(client):
+    sat = ask(client, "student.te.b4", "Do I have any lab on Saturday?")
+    assert sat["status"] == "NO_MATCH" and sat["message"].startswith("No")
+    profs = ask(client, "student.se.a1", "Which professors teach my batch?")["results"]
+    n = ask(client, "student.se.a1", "How many professors teach my batch?")
+    assert n["result_type"] == "AGGREGATE" and n["results"][0]["value"] == len(profs)
+    subj = ask(client, "student.te.b4", "How many subjects do I have?")
+    assert subj["results"][0]["value"] == len(subj["results"][0]["labels"]) > 0
+
+
+def test_composed_clarifies_instead_of_guessing_and_treats_text_as_data(client):
+    j = ask(client, "student.te.b4", "Do I have classes before 11 on Tuesday?", ok=False)
+    assert j["status"] == "CLARIFICATION_REQUIRED" and j["clarification"]["kind"] == "AMPM"
+    j2 = ask(client, "student.te.b4", "Do I have classes before 11 on Tuesday?", parameters={"time": "11:00"})
+    assert j2["status"] == "OK" and all(x["start_time"] < "11:00" for x in j2["results"])
+    inj = ask(client, "student.te.b4", "How many labs'; DROP TABLE institutional_timetable_entry; --")
+    assert inj["status"] == "OK"
+    assert ask(client, "student.te.b4", "How many labs do I have this week?")["results"][0]["value"] > 0
+
+
+def test_specialised_questions_keep_their_operations(client):
+    for who, q, intent in (("student.se.a1", "What is my next class?", "NEXT_CLASS"),
+                           ("student.se.a1", "Find all DBMS classes", "FIND_COURSE_CLASSES"),
+                           ("student.se.a1", "How long until my next class?", "TIME_UNTIL_NEXT_CLASS"),
+                           ("admin", "Which rooms are free now?", "FIND_FREE_ROOMS")):
+        j = ask(client, who, q)
+        assert j["intent"] == intent and j["meta"]["plan"]["composed"] is False, (q, j["intent"])

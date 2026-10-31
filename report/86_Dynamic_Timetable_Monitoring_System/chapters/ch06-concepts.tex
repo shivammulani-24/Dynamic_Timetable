@@ -20,7 +20,7 @@ to code in the repository or to a test, so it can be checked.
 \item \textbf{Exception handling:} typed application errors mapped to one JSON error envelope; the
       worker separates retryable from deterministic failures.
 \item \textbf{Version control:} Git with a feature branch and descriptive commit messages (Section~7.8).
-\item \textbf{Quality:} static typing (Pydantic, TypeScript \texttt{strict}), 159 + 18 automated tests,
+\item \textbf{Quality:} static typing (Pydantic, TypeScript \texttt{strict}), 168 + 20 automated tests,
       end-to-end tests, a security audit with prioritised findings (P0--P2).
 \end{itemize}
 
@@ -99,6 +99,9 @@ batch hierarchy, a FIFO queue for jobs and B-tree indexes in the database (Table
 \item \textbf{Divide by key, sort and sweep} for interval-overlap detection, $O(n\log n + m)$
       instead of $O(n^2)$ (Algorithm~\ref{alg:conflict})~\cite{cormen2009}.
 \item \textbf{Greedy longest-match} n-gram scanning for entity mentions.
+\item \textbf{Compositional semantic parsing}: independent rules for operation, filters, time window and
+      sort combine into a query plan, which is then compiled into queries (a small query algebra:
+      selection by day and filters, then aggregation by count, sum, min/max or group-by-day; Algorithm~\ref{alg:plan}).
 \item \textbf{Interval algebra} for overlap and free-time computation~\cite{allen1983}.
 \item \textbf{Correctness argument (conflicts):} after sorting by start time, if $g_j.\mathit{start}
       \geq g_i.\mathit{end}$ then every later $g_k$ ($k>j$) also has $g_k.\mathit{start} \geq g_i.\mathit{end}$,

@@ -74,6 +74,10 @@ INTENTS: dict[str, IntentSpec] = {s.name: s for s in [
     IntentSpec("Q29", "LIST_TIMETABLE_ARCHIVES", ("QT21",), BOTH, (), (), "Show my old timetable archives"),
     IntentSpec("Q30", "CROSS_DOMAIN_COMPARE", (), frozenset(), (), (), "Compare my personal and college timetable",
                notes="Unsupported in V1; always rejected without querying either domain."),
+    IntentSpec("Q31", "COMPOSED_QUERY", ("QT23",), BOTH, ("query",), (), "How many labs do I have this week?",
+               notes="Compositional plan: operation (list/count/exists/total hours/first/last/next/per day) + filters "
+                     "(me, batch, professor, room, course, lab/lecture) + when (date, weekday, week) + time window "
+                     "(at/after/before/between/after lunch) + sort. Compiled by app/query/composer.py."),
 ]}
 
 BY_QID = {s.qid: s for s in INTENTS.values()}
@@ -136,6 +140,15 @@ TEMPLATES: dict[str, TemplateSpec] = {t.qt: t for t in [
     TemplateSpec("QT21", "LIST_ARCHIVES_IN_DOMAIN", ("Q29",), ("domain",), result_fields=("timetable",)),
     TemplateSpec("QT22", "SET_DOMAIN_PRIMARY", ("Q28",), ("domain", "timetable_id"), result_fields=("primary_timetable_id",),
                  empty_result="n/a (action)", uncertain_handling="Only READY/NEEDS_REVIEW timetables are eligible."),
+    TemplateSpec("QT23", "COMPOSED_CLASS_QUERY", ("Q31",), ("timetable_id", "plan"),
+                 ("date", "day_of_week", "start_date", "end_date", "time", "start_time", "end_time", "course", "batch",
+                  "professor", "room", "lunch_time"),
+                 result_fields=ENTRY_FIELDS + ("metric", "value", "breakdown", "classes", "hours", "first_start", "last_end"),
+                 empty_result="OK with a zero count for COUNT/TOTAL_HOURS; NO_MATCH for listings",
+                 uncertain_handling=TIME_SENSITIVE + " (for time-based operations; listings and counts mark them)",
+                 extra={"operations": ["LIST", "COUNT", "EXISTS", "TOTAL_HOURS", "FIRST", "LAST", "NEXT", "PER_DAY"],
+                        "kinds": ["LAB", "LECTURE"], "windows": ["AT", "AFTER", "BEFORE", "BETWEEN", "AFTER_LUNCH"],
+                        "sorts": ["MOST", "LEAST", "EARLIEST", "LATEST"]}),
 ]}
 
 

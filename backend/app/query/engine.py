@@ -20,7 +20,7 @@ from app.config import get_settings
 from app.enums import Domain, RoleCode, SelectionType, VerificationStatus
 from app.errors import HTTP_STATUS, AppError, Code
 from app.models import InstitutionConfig, SearchHistory
-from app.query import nlp, templates as T
+from app.query import nlp, planner, templates as T
 from app.query.registry import INTENTS
 from app.query.vocab import Resolution, Vocab, load_vocab, resolve, scan
 from app.security.policy import SCOPE_FREE_INTENTS, institutional_scope, intent_allowed
@@ -289,7 +289,8 @@ def h_date(r: Run) -> T.Result:
     return T.qt01_entries_for_date(_q(r), d, _filters(r, "batch", "course", "professor", "room", self_default=True))
 
 
-def h_week(r: Run) -> T.Result:
+def _week_range(r: Run) -> tuple[date, date]:
+    """Dates of "this/next week" (or an explicit range), using the configured week start."""
     pr = r.req.parameters
     if "start_date" in pr and "end_date" in pr:
         start, end = pr["start_date"], pr["end_date"]
@@ -316,6 +317,11 @@ def h_week(r: Run) -> T.Result:
         raise Halt(Code.INVALID_REQUEST, "The end date must not be before the start date.")
     if (end - start).days + 1 > get_settings().max_date_range_days:
         raise Halt(Code.INVALID_REQUEST, f"Please choose a range of at most {get_settings().max_date_range_days} days.")
+    return start, end
+
+
+def h_week(r: Run) -> T.Result:
+    start, end = _week_range(r)
     return T.qt02_entries_for_range(_q(r), start, end, _filters(r, "batch", self_default=True))
 
 
@@ -344,7 +350,8 @@ def h_course(r: Run) -> T.Result:
     return T.qt05_find_by_course(_q(r), f, d, dow)
 
 
-def h_filter_time(r: Run) -> T.Result:
+def _time_range(r: Run) -> tuple[time, time]:
+    """A start–end time window from the question ("between 10 and 12") or typed parameters."""
     pr = r.req.parameters
     if "start_time" not in pr and len(r.parsed.times) >= 2:
         s_m, e_m = r.parsed.times[0], r.parsed.times[1]
@@ -361,6 +368,11 @@ def h_filter_time(r: Run) -> T.Result:
         end = need_time(r, 1, key="end_time", label="end time")
     if end <= start:
         raise Halt(Code.INVALID_REQUEST, "The end time must be after the start time.")
+    return start, end
+
+
+def h_filter_time(r: Run) -> T.Result:
+    start, end = _time_range(r)
     d = need_date(r, purpose="for that time range")
     return T.qt04_filter_by_time(_q(r), d, start, end, _filters(r, "batch", "course", "professor", "room", self_default=True))
 
@@ -426,16 +438,23 @@ def _section_lunch_end(r: Run, d: date) -> time | None:
     return next(iter(ends)) if len(ends) == 1 else None
 
 
+def _lunch_boundary(r: Run, d: date) -> tuple[time, str]:
+    """When lunch ends for the caller on date d: asked value → own section's lunch row → college setting."""
+    pr = r.req.parameters
+    cfg = r.db.get(InstitutionConfig, 1)
+    section_lunch = None if pr.get("lunch_time") else _section_lunch_end(r, d)
+    boundary = pr.get("lunch_time") or section_lunch or (cfg.lunch_boundary if cfg else None)
+    source = "ASKED" if pr.get("lunch_time") else ("TIMETABLE" if section_lunch else "SETTING")
+    if boundary is None:
+        raise Clarify("CONFIGURATION", "The college has not configured when lunch ends. After what time?", "lunch_time",
+                      [{"label": _fmt(time(h, m)), "value": {"lunch_time": f"{h:02d}:{m:02d}"}} for h, m in ((13, 0), (13, 30), (14, 0))])
+    return boundary, source
+
+
 def h_after(r: Run) -> T.Result:
     pr = r.req.parameters
     if r.parsed.after_lunch and "time" not in pr:
-        cfg = r.db.get(InstitutionConfig, 1)
-        section_lunch = None if pr.get("lunch_time") else _section_lunch_end(r, need_date(r, default_today=True))
-        boundary = pr.get("lunch_time") or section_lunch or (cfg.lunch_boundary if cfg else None)
-        source = "ASKED" if pr.get("lunch_time") else ("TIMETABLE" if section_lunch else "SETTING")
-        if boundary is None:
-            raise Clarify("CONFIGURATION", "The college has not configured when lunch ends. After what time?", "lunch_time",
-                          [{"label": _fmt(time(h, m)), "value": {"lunch_time": f"{h:02d}:{m:02d}"}} for h, m in ((13, 0), (13, 30), (14, 0))])
+        boundary, source = _lunch_boundary(r, need_date(r, default_today=True))
     else:
         boundary = need_time(r)
     d = need_date(r, default_today=True)
@@ -715,6 +734,10 @@ def _search(db: Session, p: Principal, req: Request) -> tuple[int, dict]:
         return HTTP_STATUS[h.code], envelope(h.code, message=h.message, details=h.details)
     if req.intent and req.intent not in INTENTS:
         return 422, envelope(Code.UNSUPPORTED_INTENT, message="That operation is not in the approved intent catalogue.")
+    if req.intent == planner.COMPOSED_INTENT:
+        if not req.query:
+            return 400, envelope(Code.INVALID_REQUEST, message="A composed query is planned from the question text; provide the query.")
+        req.intent = None  # re-plan from the text in the current context
     if not req.query and not req.intent:
         return 400, envelope(Code.INVALID_REQUEST, message="Provide a query or a registered intent.")
     if req.query and len(req.query) > 300:
@@ -759,6 +782,14 @@ def _search(db: Session, p: Principal, req: Request) -> tuple[int, dict]:
             has_floor=parsed.floor is not None or "floor" in req.parameters)
         if intent == "SEARCH_SELECTED_ARCHIVE":
             archive_wrapped, intent = True, None
+        # Compositional planning: the question's pieces (operation, filters, kind, time window,
+        # sort) become a typed query plan. Plans the specialised operations already answer keep
+        # them; everything else is compiled by the composed executor (QT23).
+        plan = planner.build_plan(parsed, intent) if (req.query and not req.intent) else None
+        if plan is not None and plan.composed:
+            intent = planner.COMPOSED_INTENT
+        elif plan is not None and plan.count_of:
+            intent = plan.count_of
         if archive_wrapped and ctx.selection_type != SelectionType.EXPLICIT_ARCHIVE:
             rows, _ = list_timetables(db, p, ctx.domain, 20, 0)
             raise Clarify("SELECT_ARCHIVE", "Which archived timetable should I search? Select one first.", "selection",
@@ -785,10 +816,22 @@ def _search(db: Session, p: Principal, req: Request) -> tuple[int, dict]:
             scope = institutional_scope(p)
             if scope.is_empty and intent not in SCOPE_FREE_INTENTS:
                 raise Clarify("SETUP_REQUIRED", scope.reason_if_empty or "Your account setup is incomplete.")
-        res = HANDLERS[intent](r)
+        if intent == planner.COMPOSED_INTENT:
+            from app.query import composer
+
+            res = composer.run(r, plan)
+        else:
+            res = HANDLERS[intent](r)
+            if plan is not None and plan.count_of:
+                from app.query import composer
+
+                res = composer.count_of(res, plan.count_of, plan)
+                intent = r.intent = planner.COMPOSED_INTENT
+            elif plan is not None:
+                res.meta["plan"] = plan.as_dict()
         warnings = r.warnings + res.warnings
         items, pagination = _paginate(res.items, req)
-        if not res.items and res.result_type not in ("ROOM_STATUS", "SCHEDULE_STATUS"):
+        if not res.items and res.result_type not in ("ROOM_STATUS", "SCHEDULE_STATUS", "AGGREGATE"):
             status = Code.NO_MATCH
         elif _is_unverified(res.items):
             status = Code.DATA_UNVERIFIED
@@ -797,8 +840,9 @@ def _search(db: Session, p: Principal, req: Request) -> tuple[int, dict]:
         else:
             status = Code.OK
         result_intent = "SEARCH_SELECTED_ARCHIVE" if archive_wrapped else intent
+        message = res.meta.pop("message", None) or _message(intent, res, r)
         meta = {**res.meta, **({"inner_intent": intent} if archive_wrapped else {})}
-        return 200, envelope(status, intent=result_intent, ctx=ctx, message=_message(intent, res, r), warnings=warnings,
+        return 200, envelope(status, intent=result_intent, ctx=ctx, message=message, warnings=warnings,
                              results=items, result_type=res.result_type, meta=meta, pagination=pagination)
     except Clarify as c:
         return 422, envelope(Code.CLARIFICATION_REQUIRED, intent=r.intent, ctx=ctx, message=c.payload["question"],
