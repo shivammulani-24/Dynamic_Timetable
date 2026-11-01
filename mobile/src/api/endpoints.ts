@@ -48,6 +48,18 @@ export const registerPush = (expo_push_token: string, platform: 'ios' | 'android
 
 // ---------------------------------------------------------------- timetables
 export const getContext = (domain: Domain) => request<TimetableContext>('/timetable-context', { query: { domain } });
+
+export interface DirectoryItem {
+  key: string;
+  label: string;
+  detail: string | null;
+}
+/** Batches, teachers and rooms of the selected timetable (viewing the college timetable is open to all). */
+export const timetableDirectory = (domain: Domain) =>
+  request<{ timetable_id: string; domain: Domain; batches: DirectoryItem[]; teachers: DirectoryItem[]; rooms: DirectoryItem[] }>(
+    '/timetable-directory',
+    { query: { domain } },
+  );
 export const listTimetables = (domain: Domain, cursor?: string) =>
   request<Paged<Timetable>>('/timetables', { query: { domain, limit: 25, cursor } });
 export const getTimetable = (domain: Domain, id: string) => request<TimetableDetail>(`/timetables/${id}`, { query: { domain } });

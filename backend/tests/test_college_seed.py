@@ -338,3 +338,24 @@ def test_parser_no_longer_reads_little_words_as_names(client):
     assert k["intent"] == "CHECK_SCHEDULE_FREE" and k["results"][0]["schedule_status"] == "SCHEDULED"
     now = ask(client, "student.se.a1", "What do I have now?", ok=False)
     assert now["intent"] == "CURRENT_CLASS"
+
+
+def test_timetable_tab_can_show_any_teacher_batch_or_room(client, college):
+    h = H(client, "student.se.a1")
+    d = client.get("/api/v1/timetable-directory", params={"domain": "INSTITUTIONAL"}, headers=h).json()
+    names = [t["label"] for t in d["teachers"]]
+    assert names.count("Dr. Anant Nimkar") == 1 and sum("Pande" in n for n in names) == 1   # one entry per person
+    assert any(b["label"] == "TE-B4" for b in d["batches"]) and any(r["label"] == "508" for r in d["rooms"])
+
+    def day(param, key):
+        return client.post("/api/v1/search", headers=h, json={"intent": "SHOW_TIMETABLE_FOR_DATE", "domain": "INSTITUTIONAL",
+                                                               "parameters": {"date": "2026-10-12", param: key}}).json()
+    nimkar = next(t for t in d["teachers"] if t["label"] == "Dr. Anant Nimkar")
+    j = day("professor", nimkar["key"])
+    assert j["results"] and {x["professor"] for x in j["results"]} == {"Dr. Anant Nimkar"}
+    te_b4 = next(b for b in d["batches"] if b["label"] == "TE-B4")
+    k = day("batch", te_b4["key"])
+    assert k["results"] and {x["batch"] for x in k["results"]} <= {"TE-B", "TE-B4"}
+    all_monday = client.get(f"/api/v1/timetables/{college['timetable_id']}/entries", headers=h,
+                            params={"domain": "INSTITUTIONAL", "day_of_week": 1, "limit": 100}).json()
+    assert all_monday["pagination"]["total"] > 60             # the whole college, not just SE-A

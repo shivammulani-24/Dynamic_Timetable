@@ -79,6 +79,10 @@ report and poster.
 
 ### 3. Weekly timetable and class details (1 minute)
 
+**New:** at the top of the Timetable tab choose **Teacher**, type `nimkar`, tap *Dr. Anant Nimkar (AVN)* →
+his whole week. Say: *"The college timetable is public, so anyone can open any batch's, teacher's or
+room's week — Mine still shows only my lab group."*
+
 **Do:** tap **Timetable** and pick **Mon**, then tap one class.
 
 > **Say:** "This is the weekly view, Monday. Each card shows time, subject, teacher, room and floor.
@@ -174,7 +178,7 @@ Wait for **Needs review** (about 10–60 s online), then open it:
 
 > **Say:** "To summarise: one React Native app for Android, iPhone and laptop; a FastAPI back end;
 > PostgreSQL; a background worker; an extraction pipeline with OCR; and a safe rule-based question
-> engine. It is backed by **178 automated back-end tests, 20 app tests and end-to-end browser tests
+> engine. It is backed by **179 automated back-end tests, 20 app tests and end-to-end browser tests
 > that all pass**. Measured search time is about **40–50 ms** for one user. With 4 server workers
 > on a laptop it handled about **60 searches per second** with **zero wrong answers at 32
 > simultaneous users**. It's deployed online for free. Next steps are a load test on real

@@ -21,7 +21,7 @@ from app.errors import AppError, Code
 from app.models import ProcessingJob, ValidationFinding
 from app.security import ratelimit
 from app.security.deps import get_principal, require_admin
-from app.security.policy import can_view_conflicts, institutional_scope
+from app.security.policy import OPEN_VIEWING, can_view_conflicts, institutional_scope
 from app.security.principal import Principal
 from app.services import conflicts as conflict_svc
 from app.services import storage
@@ -158,9 +158,10 @@ def entries(
     q = select(m.entry).where(m.entry.timetable_id == tt.timetable_id)
     include_review = review and (d == Domain.PERSONAL or p.is_admin)
     if d == Domain.INSTITUTIONAL and not p.is_admin:
-        cond = scope_condition(institutional_scope(p), tt, m.entry)
-        if cond is not None:
-            q = q.where(cond)
+        if not OPEN_VIEWING:   # viewing the official timetable is open to everyone (policy.OPEN_VIEWING)
+            cond = scope_condition(institutional_scope(p), tt, m.entry)
+            if cond is not None:
+                q = q.where(cond)
         q = q.where(m.entry.verification_status != VerificationStatus.REJECTED)
     if day_of_week:
         q = q.where(m.entry.day_of_week == day_of_week)

@@ -199,3 +199,32 @@ def dashboard(domain: str = Query(...), p: Principal = Depends(get_principal), d
         out["personal_archives"] = db.scalar(select(func.count()).select_from(PersonalTimetable).where(
             PersonalTimetable.owner_user_id == p.user_id, PersonalTimetable.deleted_at.is_(None)))
     return out
+
+
+@router.get("/timetable-directory")
+def timetable_directory(domain: str = Query("INSTITUTIONAL"), p: Principal = Depends(get_principal), db: Session = Depends(get_db)):
+    """Batches, teachers and rooms of the selected timetable — for "view anyone's timetable".
+    Viewing the official timetable is open to every signed-in user (policy.OPEN_VIEWING); a personal
+    timetable's labels are only ever its owner's (the context resolves to the caller's own)."""
+    from app.query.vocab import _people, _representative, load_vocab
+    from app.services.context import resolve_context
+
+    ctx = resolve_context(db, p, parse_domain(domain), None)
+    db.commit()
+    v = load_vocab(db, ctx)
+
+    def item(c, detail=None):
+        return {"key": c.key, "label": c.display, "detail": detail if detail is not None else c.detail}
+
+    teachers = []
+    for group in _people(v.professors, v.professors):
+        rep = _representative(group)
+        codes = sorted({x.upper() for g in group for x in g.extra.get("codes", []) if x})
+        teachers.append(item(rep, ", ".join(codes) or None))
+    return {
+        "timetable_id": str(ctx.timetable_id),
+        "domain": ctx.domain.value,
+        "batches": sorted((item(c) for c in v.batches), key=lambda x: x["label"]),
+        "teachers": sorted(teachers, key=lambda x: x["label"].lower()),
+        "rooms": sorted((item(c) for c in v.rooms), key=lambda x: x["label"]),
+    }
