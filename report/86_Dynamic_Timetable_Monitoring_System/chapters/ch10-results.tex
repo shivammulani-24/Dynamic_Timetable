@@ -179,6 +179,66 @@ O9 & 179 + 20 + 45 e2e steps passing & Achieved\\
 \end{tabularx}
 \end{table}
 
+\subsection{Improvements Incorporated after Review}
+The following improvements were made after the project reviews and are part of the version
+demonstrated at the ESE. Each one is covered by automated tests.
+\begin{table}[H]
+\centering
+\caption{Improvements incorporated before the ESE}
+\label{tab:improvements}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}XX@{}}
+\toprule
+\textbf{Area} & \textbf{Before} & \textbf{After (current version)}\\
+\midrule
+Question coverage & A fixed list of about 30 question types; counts, ``busiest day'' or ``last lab on Friday'' were refused & Compositional query planner: 17 operations combined with filters, dates, 6 time windows and sorting (Section~5, TC-31--TC-36)\\
+Teacher names & Only faculty codes such as AVN were understood & Code, first name, surname or ``Nimkar sir'' all resolve to the same person; spelling variants sharing one code are merged\\
+Subject names & Exact subject names only & Partial words and one-letter typos (e.g.\ the PDF's own ``Discreate'') are matched\\
+Viewing other timetables & Students saw only their own batch & Anyone can view any teacher's, batch's or room's official timetable through a picker; personal timetables stay private (TC-37)\\
+Lunch and free time & Not answerable & Each section's own lunch and the free gaps between one's classes (TC-35)\\
+Short words in questions & ``in'', ``at'' or ``is'' were sometimes read as a batch or a name & Stop-word lists prevent these misreadings (TC-38)\\
+Explainability & Only the answer was shown & Every answer carries the query plan that produced it\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Scenario-Based Challenges}
+Table~\ref{tab:scenarios} lists realistic situations the system can face in a college and how the
+current version handles each one. Every row is backed by a test case from Chapter~9 or a measured
+result.
+\begingroup
+\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{7.3cm}>{\raggedright\arraybackslash}p{2.6cm}@{}}
+\caption{Scenario-based challenges and how the system responds}\label{tab:scenarios}\\
+\toprule
+\textbf{Scenario} & \textbf{System behaviour} & \textbf{Evidence}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Scenario} & \textbf{System behaviour} & \textbf{Evidence}\\
+\midrule
+\endhead
+The department releases a revised timetable mid-semester & The admin uploads the new PDF; the old version stays in the archive and the current one keeps serving users until the new one is reviewed and activated & TC-05, TC-06\\
+A room changes for one class after publishing & The admin corrects the entry; the original value, the new value, the reason and the admin are stored in an audit record & TC-12\\
+The PDF prints the noon row as ``12.15 a.m.\ to 01.15 p.m.'' & Backtracking proves 12:15--13:15 from the neighbouring rows and shows a visible note & TC-09, Alg.~\ref{alg:time}\\
+A row has no printed time & The entry is marked \textsc{Incomplete} and is not used in answers, instead of being guessed & Sec.~10.3\\
+Only a phone photo or scanned copy is available & OCR reads it and its entries are marked \textsc{Unverified} for review & TC-10\\
+A wrong file is uploaded (text renamed to .pdf, or a PDF without a table) & Rejected or marked \textsc{Unusable}; it can never become the official timetable & TC-04, TC-11\\
+The same teacher is spelled two ways in the PDF & Entries sharing a faculty code are merged into one person & TC-36\\
+One teacher is scheduled in two rooms at once & Reported as a clash to the HOD; the 2 genuine clashes in the real PDF were found & TC-21\\
+A student types ``Am I free at 2?'' & The system asks whether 2 a.m.\ or 2 p.m.\ is meant instead of guessing & TC-17\\
+A user types SQL such as \texttt{'; DROP TABLE} into the question box & Treated as plain text; no SQL is built from user text & TC-18\\
+A student tries to open another user's personal timetable & Returns 404 and the attempt is logged & TC-22\\
+A student sends \texttt{roles:[ADMIN]} in a request & Ignored; admin endpoints return 403 & TC-03\\
+A stolen refresh token is reused & The whole token family is revoked & TC-02\\
+Two admins activate different timetables at the same moment & Exactly one becomes the default; no corrupted state & TC-13\\
+Year-end promotion of all students & Preview, then confirm; history is kept and each student has one current placement & TC-23, TC-24\\
+A new student has not been assigned a batch yet & A clear ``setup required'' message instead of wrong classes & TC-25\\
+Many students open the app at 8:55 a.m. & 32 parallel clients: 57 requests/s, 0 wrong answers & TC-29\\
+\bottomrule
+\end{longtable}
+\endgroup
+
 \subsection{Discussion of Findings}
 \begin{itemize}
 \item \textbf{Real data is different from specifications.} Most of the extraction work went into
