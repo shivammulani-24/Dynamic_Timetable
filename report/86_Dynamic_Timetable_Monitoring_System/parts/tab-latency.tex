@@ -1,0 +1,19 @@
+\begin{table}[H]
+\centering
+\caption{Single-user search latency per question type (50 requests each)}
+\label{tab:latency}
+\small
+\setlength{\tabcolsep}{4pt}\begin{tabular}{@{}llrrr@{}}
+\toprule
+\textbf{Intent} & \textbf{Question} & \textbf{Results} & \textbf{p50 (ms)} & \textbf{p95 (ms)}\\
+\midrule
+Q10 Next class & What is my next class? & 1 & 42 & 52\\
+Q02 Day timetable & What are my classes on Monday? & 5 & 44 & 52\\
+Q06 Course search & Find all DBMS classes & 7 & 45 & 51\\
+Q11 After lunch & Do I have classes after lunch on Tuesday? & 3 & 47 & 54\\
+Q15 Professor schedule & What is my schedule on Monday? & 3 & 37 & 46\\
+Q22 Free rooms & Which rooms are free at 10~am today? & 20 & 43 & 51\\
+Q20 Room schedule & Show the schedule of room 508 on Monday & 8 & 41 & 49\\
+\bottomrule
+\end{tabular}
+\end{table}

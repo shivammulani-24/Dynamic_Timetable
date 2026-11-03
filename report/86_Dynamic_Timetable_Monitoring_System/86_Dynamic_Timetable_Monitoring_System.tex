@@ -1,7 +1,7 @@
 % =====================================================================
 %  Mini Project Report -- Group 86
 %  Dynamic Timetable Monitoring System
-%  Based on the SPIT ESE report template (synopsis.tex).
+%  Follows the department template (synopsis.tex): sections 1-8 as given.
 %  Build:  latexmk -pdf 86_Dynamic_Timetable_Monitoring_System.tex
 %     or:  pdflatex x3 (for the lists and cross-references)
 % =====================================================================
@@ -37,6 +37,7 @@
 \usepackage{microtype}
 \usepackage[hidelinks]{hyperref}
 \usepackage{xurl}
+\usepackage{pdfpages}
 
 \input{details.tex}
 
@@ -90,15 +91,10 @@
 
 \input{frontmatter/title.tex}
 \pagenumbering{roman}
-\input{frontmatter/certificate.tex}
 \input{frontmatter/approval.tex}
 \input{frontmatter/declaration.tex}
-\input{frontmatter/acknowledgement.tex}
 \input{frontmatter/abstract.tex}
 
-\newpage
-\phantomsection\addcontentsline{toc}{section}{Contents}
-\tableofcontents
 \newpage
 \phantomsection\addcontentsline{toc}{section}{List of Figures}
 \listoffigures
@@ -106,21 +102,18 @@
 \phantomsection\addcontentsline{toc}{section}{List of Tables}
 \listoftables
 \newpage
-\input{frontmatter/abbreviations.tex}
+\tableofcontents
 
 \newpage
 \pagenumbering{arabic}
-\input{chapters/ch01-introduction.tex}
-\input{chapters/ch02-literature.tex}
-\input{chapters/ch03-srs.tex}
-\input{chapters/ch04-design.tex}
-\input{chapters/ch05-algorithms.tex}
-\input{chapters/ch06-concepts.tex}
-\input{chapters/ch07-implementation.tex}
-\input{chapters/ch08-performance.tex}
-\input{chapters/ch09-testing.tex}
-\input{chapters/ch10-results.tex}
-\input{chapters/ch11-conclusion.tex}
+\input{chapters/s1-introduction.tex}
+\input{chapters/s2-literature.tex}
+\input{chapters/s3-analysis.tex}
+\input{chapters/s4-design.tex}
+\input{chapters/s5-results.tex}
+\input{chapters/s6-conclusion.tex}
+\input{chapters/s7-paper-poster.tex}
+\input{chapters/s8-plagiarism.tex}
 
 \newpage
 \phantomsection\addcontentsline{toc}{section}{References}

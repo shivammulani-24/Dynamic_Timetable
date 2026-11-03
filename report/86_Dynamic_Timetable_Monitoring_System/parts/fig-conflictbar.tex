@@ -1,0 +1,12 @@
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[ybar,width=0.9\textwidth,height=5.2cm,bar width=16pt,ymin=0,ymax=680,
+  symbolic x coords={Naive overlaps,After rule set 1,After rule set 2},xtick=data,
+  nodes near coords,ylabel={Reported conflicts},enlarge x limits=0.25,title={\small Conflict reports on the real PDF}]
+\addplot[fill=spitblue!60] coordinates {(Naive overlaps,542) (After rule set 1,25) (After rule set 2,2)};
+\end{axis}
+\end{tikzpicture}
+\caption{Effect of intended-overlap rules: from 542 raw overlaps to the 2 genuine clashes}
+\label{fig:conflictbar}
+\end{figure}

@@ -1,0 +1,79 @@
+\section{Design and Methodology}
+
+\subsection{Proposed System}
+The proposed system has three major modules (Figure~\ref{fig:flowextract} and Figure~\ref{fig:flowquery}):
+\begin{enumerate}
+\item \textbf{Extraction pipeline.} Converts any supported file into a common grid model, recognises
+      sections, time rows, lab batches, legends and breaks, validates every entry and gives it a
+      status: \textsc{Verified}, \textsc{Unverified}, \textsc{Incomplete} or \textsc{Rejected}.
+\item \textbf{Back end.} Stores each timetable as an archive, enforces role-based access, detects
+      clashes and answers questions through a deterministic \emph{compositional query planner}.
+\item \textbf{Cross-platform app.} Role dashboards, weekly view of any batch, teacher or room, the
+      Ask screen, archives, uploads, review screens and administrator tools.
+\end{enumerate}
+\input{parts/fig-flowextract.tex}
+
+\subsection{Dataset}
+The system was developed and evaluated on the Computer Engineering department's real timetable for
+the current semester: a 10-page PDF covering S.E., T.E., B.E.\ and M.Tech.\ divisions with 453 classes
+(570 rows including breaks and activities). Problems found in this document shaped the design: lab
+cells with four batches, codes expanded only in each page's legend, the noon row printed
+``12.15 a.m.\ to 01.15 p.m.'', a combined B.E.\ elective page, LLC slots with no teacher or room, and
+spelling variants (``Sushama''/``Sushma'' Pande, ``Discreate'' Structures). A smaller reference PDF
+and synthetic Excel, Word and scanned files were used for the other input formats.
+
+\subsection{Time-Row Resolution by Constrained Backtracking}
+Each time label is turned into a small set of candidate intervals. The algorithm searches for
+assignments in which every row is plausible (between 7:00 and 21:00, at most 6 hours) and no row
+starts before the previous row ends. A reading is accepted as certain only if it is the \emph{same in
+every valid assignment}; otherwise the row goes to review. The college's noon row is therefore read as
+12:15--13:15 only because the row before ends at 12:15 and the row after starts at 13:15. The search is
+bounded at 64 assignments, so it costs $O(64r)$ for $r$ rows.
+\input{parts/alg-time.tex}
+
+\subsection{Cell Parsing}
+A cell is split into lines, lines belonging to one lab batch (e.g.\ \texttt{A1 COA Lab JS 606-4}) are
+grouped, and the batch (\texttt{[A-D][1-4]}), room, teacher codes and subject are identified. Codes are
+expanded only if they appear in the legend of the \emph{same page}; otherwise the code is kept and an
+informational flag is raised.
+
+\subsection{Conflict Detection (Group, Sort and Sweep)}
+Entries are grouped by resource (teacher, room, batch) and day, sorted by start time and swept forward;
+the inner loop stops as soon as a later entry starts after the current one ends, giving
+$O(n\log n + m)$ instead of $O(n^2)$~\cite{cormen2009}. Intended overlaps (the same source cell,
+parallel lab batches, elective options, a combined session printed on several pages) are not
+reported. The overlap test follows Allen's interval relations~\cite{allen1983}.
+\input{parts/alg-conflict.tex}
+
+\subsection{Compositional Query Planner}
+The engine does not match a whole question to one of a fixed list. It recognises independent pieces
+and combines them into a typed \textbf{query plan}:
+\begin{itemize}
+\item \textbf{Operation} (17): \textsc{List}, \textsc{Count}, \textsc{Exists}, \textsc{Total\_Hours},
+      \textsc{First}, \textsc{Last}, \textsc{Next}, \textsc{Per\_Day}, \textsc{Span},
+      \textsc{Free\_Slots}, \textsc{Breaks}, \textsc{After/Before\_Course}, \textsc{Teachers},
+      \textsc{Per\_Room}, \textsc{Room\_Info}, \textsc{Conflicts}.
+\item \textbf{Filters}: me, batch, professor, room, course; lab or lecture; room type.
+\item \textbf{When}: a date, a weekday, this or next week, or the whole week.
+\item \textbf{Time window}: at, after, before, between, after lunch, now.
+\item \textbf{Metric and sort}: most/least classes or hours, earliest/latest start or finish.
+\end{itemize}
+For example, ``Which day do I finish earliest?'' becomes
+\texttt{\{operation: PER\_DAY, metric: LAST\_END, sort: EARLIEST\}}. Names are matched against a
+vocabulary built from the timetable itself: a teacher can be named by code (``AVN''), first name,
+surname or ``Nimkar sir''; entries sharing a faculty code are merged; subjects match partial words and
+one-letter typos. The plan is validated against a closed registry and compiled into pre-written
+parameterised SQL, so user text never becomes SQL (safe against the attacks
+in~\cite{greshake2023,pedro2023}). Ambiguous questions (``at 2'', a surname shared by two teachers)
+get a clarification instead of a guess, and every answer carries its plan.
+\input{parts/alg-plan.tex}
+\input{parts/fig-flowquery.tex}
+
+\subsection{Security Design}
+Passwords are hashed with Argon2id~\cite{biryukov2016}. Access tokens are JWTs~\cite{rfc7519} valid for
+15 minutes; refresh tokens rotate, are stored only as hashes, and reuse of a revoked token revokes the
+whole family. Roles are read from the database on every request, never from the client. Requests for
+another user's personal timetable return 404 and are logged. Table~\ref{tab:security} lists the main
+threats and controls.
+\input{parts/tab-threats.tex}
+\newpage

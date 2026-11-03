@@ -1,0 +1,105 @@
+\section{Introduction}
+Every semester the timetable committee of the college publishes the class timetable as a multi-page
+PDF: one grid per division for S.E., T.E., B.E.\ and M.Tech., with days as rows, time slots as
+columns and, below each grid, a legend that expands abbreviations such as \texttt{DBMS}, \texttt{KKD}
+or \texttt{LLC}. A single cell may contain a subject, a teacher code, a room number and, for practical
+sessions, four stacked lab batches (\texttt{A1}--\texttt{A4}), each with its own teacher and laboratory.
+
+Students and teachers read this document by hand many times a day: to find the next lecture, to see
+whether a lab is in 606 or 607, to locate a teacher, or to find an empty room for a make-up lecture.
+When a revised PDF is circulated, everyone compares it with the old one by eye, and clashes (one
+teacher in two rooms at the same time) are noticed only when they happen. \emph{Dynamic Timetable}
+reads the timetable exactly as it is published, checks it, and lets every student and teacher see
+their schedule and ask questions about it in plain English on a phone or a laptop.
+
+\subsection{Problem Statement}
+\begin{quote}
+\emph{Design and implement a system that converts the college's published timetable (PDF, spreadsheet,
+Word file or photograph) into verified structured data, keeps every version as an auditable archive,
+detects scheduling clashes, and lets each user (student, professor, HOD, Principal or administrator)
+get correct answers to everyday timetable questions on a phone or laptop, including questions typed in
+plain English, without exposing one user's personal data to another.}
+\end{quote}
+The difficulties with the current practice are:
+\begin{enumerate}
+\item \textbf{Unstructured source.} Merged cells, stacked lab rows, page-wise legends, inconsistent
+      time labels (the noon row is printed ``12.15 a.m.\ to 01.15 p.m.'') and scanned pages make
+      automatic reading hard.
+\item \textbf{Manual lookup.} ``Where is my next class?'' requires finding the right page, row,
+      column and lab batch and then expanding the legend codes.
+\item \textbf{No conflict visibility.} Teacher, room and batch overlaps are not checked mechanically.
+\item \textbf{Version confusion.} Old and revised PDFs circulate together.
+\item \textbf{Privacy.} A personal timetable (coaching, tuition) must never be visible to others.
+\end{enumerate}
+
+\subsection{Objectives}
+\begin{enumerate}[label=\textbf{O\arabic*.}]
+\item Extract classes from the real timetable PDF with at least 95\% verified automatically, and flag
+      every uncertain value for review instead of guessing.
+\item Accept PDF, scanned PDF or photo (OCR), Excel/CSV and Word through one pipeline.
+\item Provide role-based views for Student, Professor, HOD, Principal and Admin, with permissions
+      enforced on the server.
+\item Answer everyday questions typed in English with a deterministic engine that is not limited to a
+      fixed list of questions, and ask for clarification when a question is ambiguous.
+\item Detect professor, room and batch clashes and report only genuine clashes.
+\item Keep official and personal timetables strictly separate, with full version history.
+\item Answer a question in under 300~ms (median) with no wrong answers under concurrent use.
+\item Run on Android, iPhone and laptop browsers from one code base, with a free online demo.
+\item Back the system with automated tests, all passing.
+\end{enumerate}
+
+\subsection{Scope}
+\paragraph{Included.} Upload and extraction (PDF, scanned PDF, JPG/PNG, XLSX/XLS, CSV, DOCX/DOC);
+validation, review and audited correction; an archive of all versions with one official timetable;
+clash detection; role dashboards; weekly timetable of any batch, teacher or room; natural-language
+questions; free-room and teacher-availability search; personal timetables; year-end promotion of
+students; administrator master data; audit log.
+
+\paragraph{Not included.} Automatic \emph{generation} of a timetable (the committee still creates it);
+attendance; live location of teachers (only the \emph{scheduled} room is reported); exam timetables;
+integration with the college ERP.
+
+\paragraph{Users and scale.} Students, professors, HODs, the Principal and the timetable administrator
+of one institute: about 2{,}000--3{,}000 users and 500--1{,}000 classes per timetable.
+
+\subsection{Technologies Used}
+\begin{table}[H]
+\centering
+\caption{Technologies used}
+\label{tab:tech}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}p{4.6cm}X@{}}
+\toprule
+\textbf{Layer} & \textbf{Technology} & \textbf{Purpose}\\
+\midrule
+Back end & Python 3.13, FastAPI~\cite{fastapi} & Typed REST API with automatic OpenAPI documentation\\
+Database & PostgreSQL 16~\cite{postgresdocs}, SQLAlchemy 2, Alembic & 31 normalised tables, migrations; also the job queue (\texttt{SKIP LOCKED})\\
+Extraction & PyMuPDF~\cite{pymupdf}, Tesseract OCR~\cite{smith2007}, openpyxl, python-docx & Reading PDF grids, scanned pages, Excel and Word files\\
+App & React Native~\cite{reactnative}, Expo SDK 58~\cite{expo}, TypeScript, TanStack Query & One code base for Android, iOS and the web\\
+Security & Argon2id~\cite{biryukov2016}, JWT~\cite{rfc7519}, RBAC~\cite{sandhu1996} & Password hashing, rotating tokens, role-based access\\
+Testing & pytest, Jest, Playwright & Unit, integration and end-to-end tests\\
+Deployment & Docker, Render~\cite{render} & Free cloud demo from one blueprint file\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Assumptions and Constraints}
+\paragraph{Assumptions.}
+\begin{itemize}
+\item The timetable repeats weekly within a semester (date-specific entries are supported but rare).
+\item Every user has a college e-mail address issued by the institute.
+\item Room floors can be derived from the room number (508 $\rightarrow$ floor 5) until the Admin
+      corrects them.
+\item A class from 9:00 to 10:00 occupies the interval $[9{:}00, 10{:}00)$, so back-to-back classes do
+      not clash.
+\end{itemize}
+\paragraph{Constraints.}
+\begin{itemize}
+\item \textbf{Financial:} zero budget, so only open-source software and free hosting were used.
+\item \textbf{Technical:} the source is a human-formatted PDF whose layout can change every semester;
+      the parser must report what it cannot read.
+\item \textbf{Operational:} the official timetable changes only after explicit Admin activation, and
+      the Admin can never read personal timetables.
+\item \textbf{Time:} one semester alongside regular course work.
+\end{itemize}
+\newpage

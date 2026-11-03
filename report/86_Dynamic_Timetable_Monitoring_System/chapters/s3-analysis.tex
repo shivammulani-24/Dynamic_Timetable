@@ -1,0 +1,48 @@
+\section{Analysis}
+This chapter analyses what the system must do and how its parts and data relate: the requirements,
+the overall architecture, data flow diagrams and UML diagrams.
+
+\subsection{Requirements Analysis}
+The functional requirements were derived from the problems in Section~1.1 and from discussions with
+students, faculty and the guide. Table~\ref{tab:fr} lists them with their acceptance criteria and
+Table~\ref{tab:nfr} the non-functional targets.
+\input{parts/tab-fr.tex}
+\input{parts/tab-nfr.tex}
+
+\subsection{System Architecture}
+Figure~\ref{fig:arch} shows the architecture. One React Native app serves Android, iOS and the web.
+It talks over HTTPS to a stateless FastAPI back end that authenticates every request, loads the
+user's roles from the database and resolves the search context on the server. Uploads are queued in
+PostgreSQL and processed by a background worker, so the API is never blocked by OCR. PostgreSQL is the
+single source of truth.
+\input{parts/fig-arch.tex}
+
+\subsection{Data Flow Diagrams}
+The context diagram (Figure~\ref{fig:dfd0}) shows the system and its external entities. Level~1
+(Figure~\ref{fig:dfd1}) splits it into the main processes: authentication, upload and extraction,
+review and activation, conflict detection and question answering, all sharing the timetable store.
+\input{parts/fig-dfd0.tex}
+\input{parts/fig-dfd1.tex}
+
+\subsection{Use Case Diagram}
+Figure~\ref{fig:usecase} shows what each role can do. Every logged-in user can view any official
+timetable and ask questions; personal timetables belong only to their owner; clash reports are for
+the HOD, Principal and Admin; upload, correction and activation are Admin-only.
+\input{parts/fig-usecase.tex}
+
+\subsection{Class Diagram}
+Figure~\ref{fig:class} shows the core domain: a timetable has many entries, and each entry refers to a
+course, a teacher (staff), a room and a batch; batches form a hierarchy (division $\rightarrow$ lab
+batch).
+\input{parts/fig-class.tex}
+
+\subsection{Sequence Diagram}
+Figure~\ref{fig:seq} follows one question from the app to the database and back: authentication,
+context resolution, planning, validation and execution of a parameterised query.
+\input{parts/fig-seq.tex}
+
+\subsection{ER Diagram}
+Figure~\ref{fig:er} shows the main entities of the database. The schema has 31 tables in third normal
+form; course, staff, room and batch details are stored once and referenced by foreign keys.
+\input{parts/fig-er.tex}
+\newpage

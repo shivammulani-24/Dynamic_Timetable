@@ -1,0 +1,26 @@
+\begin{algorithm}[H]
+\caption{Detect professor, room and batch clashes}\label{alg:conflict}
+\begin{algorithmic}[1]
+\Require entries $E$ of one timetable (classes with day and times, not rejected)
+\Ensure list of conflicts with confidence \textsc{Confirmed}/\textsc{Possible}
+\State $G \gets$ empty hash map
+\ForAll{$x \in E$}
+  \ForAll{resource $(k, \mathit{key}) \in \{$professor, room, batch$\}$ of $x$}
+     \State append $x$ to $G[(k, \mathit{key}, x.\mathit{day})]$ \Comment{id if mapped, else normalised label}
+  \EndFor
+\EndFor
+\ForAll{group $g \in G$}
+   \State sort $g$ by start time
+   \For{$i \gets 1$ \textbf{to} $|g|$}
+     \For{$j \gets i+1$ \textbf{to} $|g|$}
+        \If{$g_j.\mathit{start} \geq g_i.\mathit{end}$} \textbf{break} \Comment{sorted: no later entry can overlap}\EndIf
+        \If{$g_i.\mathit{start} < g_j.\mathit{end} \wedge g_j.\mathit{start} < g_i.\mathit{end}$ \textbf{and not} \textsc{Intended}$(g_i, g_j)$}
+            \State report $(k, g_i, g_j)$; \textsc{Confirmed} if both verified, mapped and certain
+        \EndIf
+     \EndFor
+   \EndFor
+\EndFor
+\Function{Intended}{$a, b$}: same source cell, same combined session on several pages, parallel
+elective options, or a sub-group's own written period \EndFunction
+\end{algorithmic}
+\end{algorithm}

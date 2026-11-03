@@ -1,0 +1,18 @@
+\begin{table}[H]
+\centering
+\caption{Load test with increasing concurrent clients (4 API workers)}
+\label{tab:loadresults}
+\small
+\begin{tabular}{@{}rrrrrrr@{}}
+\toprule
+\textbf{Clients} & \textbf{Requests} & \textbf{Wrong} & \textbf{req/s} & \textbf{p50 (ms)} & \textbf{p95 (ms)} & \textbf{CPU (\%)}\\
+\midrule
+1 & 30 & 0 & 18.6 & 49 & 57 & 31\\
+2 & 60 & 0 & 25.4 & 75 & 90 & 32\\
+4 & 120 & 0 & 46.5 & 64 & 90 & 48\\
+8 & 240 & 0 & 60.4 & 90 & 141 & 63\\
+16 & 480 & 0 & 54.1 & 183 & 354 & 62\\
+32 & 960 & 0 & 57.4 & 410 & 635 & 76\\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,46 @@
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max width=\textwidth}
+\begin{tikzpicture}[ent/.style={draw=spitblue,thick,fill=boxfill,font=\scriptsize\bfseries,minimum width=27mm,minimum height=7mm,align=center},
+  rel/.style={draw,thick,diamond,aspect=2,fill=yellow!15,font=\tiny,inner sep=1pt,align=center}]
+\node[ent] (ua) at (0,0) {USER\_ACCOUNT};
+\node[ent,minimum width=16mm] (role) at (-6.2,0) {ROLE};
+\node[rel] (has) at (-3.4,0) {USER\_ROLE};
+\node[ent] (stu) at (-2.5,-2.2) {STUDENT};
+\node[ent] (stf) at (2.5,-2.2) {STAFF};
+\node[ent] (sah) at (-2.5,-4.4) {STUDENT\_ACADEMIC\\\_HISTORY};
+\node[ent] (batch) at (-2.5,-6.8) {BATCH};
+\node[ent] (dept) at (-6.6,-5.6) {DEPARTMENT};
+\node[ent] (ay) at (-6.6,-3.4) {ACADEMIC\_YEAR};
+\node[ent] (itt) at (5.2,-4.4) {INSTITUTIONAL\\\_TIMETABLE};
+\node[ent] (ite) at (2.5,-6.8) {INSTITUTIONAL\\\_TIMETABLE\_ENTRY};
+\node[ent] (room) at (2.5,-9) {ROOM};
+\node[ent] (course) at (-2.5,-9) {COURSE};
+\node[ent] (set) at (8.6,-4.4) {SETTINGS\\(single row)};
+\node[ent] (ptt) at (5.2,0) {PERSONAL\\\_TIMETABLE};
+\node[ent] (pte) at (8.6,0) {PERSONAL\\\_ENTRY};
+\node[ent] (job) at (8.6,-6.8) {PROCESSING\\\_JOB};
+\node[ent] (cor) at (6,-9) {ENTRY\\\_CORRECTION};
+\draw (role) -- node[lbl,above]{M} (has) -- node[lbl,above]{N} (ua);
+\draw (ua) -- node[lbl,left]{1 : 0..1} (stu);
+\draw (ua) -- node[lbl,right]{1 : 0..1} (stf);
+\draw (stu) -- node[lbl,left]{1 : N} (sah);
+\draw (sah) -- node[lbl,left]{N : 1} (batch);
+\draw (sah) -- node[lbl,above,sloped]{N : 1} (ay);
+\draw (batch) -- node[lbl,above,sloped]{N : 1} (dept);
+\draw (batch) .. controls +(-1.6,-0.9) and +(-1.6,0.9) .. node[lbl,left]{parent} (batch);
+\draw (itt) -- node[lbl,above,sloped]{1 : N} (ite);
+\draw (ite) -- node[lbl,above]{N : 1} (batch);
+\draw (ite) -- node[lbl,right]{N : 1} (room);
+\draw (ite) -- node[lbl,above,sloped]{N : 1} (course);
+\draw (ite) -- node[lbl,right]{N : 1} (stf);
+\draw (set) -- node[lbl,above]{0..1} (itt);
+\draw (ua) -- node[lbl,above]{1 : N owns} (ptt);
+\draw (ptt) -- node[lbl,above]{1 : N} (pte);
+\draw (job) -- node[lbl,above,sloped]{N : 1} (itt);
+\draw (cor) -- node[lbl,above,sloped]{N : 1} (ite);
+\end{tikzpicture}
+\end{adjustbox}
+\caption{ER diagram (main entities; personal sections, notifications, tokens and audit omitted)}
+\label{fig:er}
+\end{figure}

@@ -1,0 +1,41 @@
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[cls/.style={draw,thick,rectangle split,rectangle split parts=3,fill=boxfill,
+  font=\scriptsize,align=left,text width=40mm,rectangle split part fill={spitblue!25,boxfill,white}}]
+\node[cls] (ua) at (0,0) {\textbf{UserAccount}
+\nodepart{second}user\_id: UUID\\college\_email: str\\password\_hash: str\\account\_status\\token\_version: int
+\nodepart{third}+roles(): set[Role]};
+\node[cls] (st) at (-5,-4.2) {\textbf{Student}
+\nodepart{second}uid: str\\student\_status
+\nodepart{third}+current\_placement()};
+\node[cls] (sf) at (0,-4.2) {\textbf{Staff}
+\nodepart{second}short\_code: str\\designation
+\nodepart{third}};
+\node[cls] (it) at (5.4,0) {\textbf{InstitutionalTimetable}
+\nodepart{second}timetable\_id: UUID\\processing\_status\\parser\_version\\effective\_from: date\\data\_version: int
+\nodepart{third}+activate()\\+conflicts(): list};
+\node[cls] (ie) at (5.4,-4.6) {\textbf{InstitutionalEntry}
+\nodepart{second}day\_of\_week, start/end\\course/staff/room/batch\\raw\_extracted\_text\\source\_page\\verification\_status
+\nodepart{third}+correct(change)};
+\node[cls] (job) at (10.6,0) {\textbf{ProcessingJob}
+\nodepart{second}status, attempts\\heartbeat\_at
+\nodepart{third}+claim()\\+fail(code)};
+\node[cls] (qe) at (-5,0) {\textbf{QueryEngine}
+\nodepart{second}registry: Q01..Q30\\templates: QT01..QT22
+\nodepart{third}+search(ctx, text)\\-classify(), -resolve()};
+\node[cls] (b) at (10.6,-4.6) {\textbf{Batch}
+\nodepart{second}code (SE-A1)\\parent\_batch\_id
+\nodepart{third}+ancestors()};
+\draw[thick] (ua.south) -- node[lbl,pos=.85,right]{0..1} (sf.north);
+\draw[thick] (ua.south west) -- node[lbl,pos=.85,left]{0..1} (st.north);
+\draw[thick,-{Diamond[open,length=3mm]}] (ie.north) -- node[lbl,pos=0.2,right]{1..*} (it.south);
+\draw[thick] (job.west) -- node[lbl,above]{1} (it.east);
+\draw[thick,dashed,-{Stealth}] (qe.east) -- node[lbl,above]{reads} (ua.west);
+\draw[thick] (ie.east) -- node[lbl,above]{*\quad 0..1} (b.west);
+\draw[thick] (sf.east) -- node[lbl,above]{0..1\quad *} (ie.west);
+\draw[thick] (b.north) .. controls +(0.8,1) and +(1.6,0.2) .. node[lbl,right]{parent} (b.east);
+\end{tikzpicture}}
+\caption{Simplified class diagram of the core domain}
+\label{fig:class}
+\end{figure}

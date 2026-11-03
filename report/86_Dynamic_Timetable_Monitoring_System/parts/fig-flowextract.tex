@@ -1,0 +1,26 @@
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=4.5mm]
+\node[term] (s) {Start: job claimed};
+\node[blk,below=of s] (a) {Detect format (magic bytes)};
+\node[dec,below=of a] (d1) {PDF?};
+\node[blk,right=12mm of d1,text width=40mm] (o) {Office/CSV/image adapter\\(openpyxl, python-docx, OCR)};
+\node[blk,below=of d1] (b) {Per page: text + words with coordinates};
+\node[dec,below=of b] (d2) {enough\\text?};
+\node[blk,right=12mm of d2] (ocr) {Tesseract OCR};
+\node[blk,below=of d2] (c) {Ruled tables (keep merged spans)\\or geometric gutter fallback};
+\node[blk,below=of c] (g) {Common Grid model};
+\node[blk,below=of g] (h) {Sections, W.E.F., tentative; time rows (Alg.~\ref{alg:time})};
+\node[blk,below=of h] (i) {Cells $\rightarrow$ entries (Sec.~4.4); legend expansion};
+\node[blk,below=of i] (j) {Map labels to master data (unique exact match)};
+\node[blk,below=of j] (k) {Validate, status per entry, timetable status};
+\node[term,below=of k] (e) {Persist + notify};
+\draw[arr] (s)--(a); \draw[arr] (a)--(d1); \draw[arr] (d1)--node[lbl,right]{yes}(b); \draw[arr] (d1)--node[lbl,above]{no}(o);
+\draw[arr] (o.south) |- (g.east);
+\draw[arr] (b)--(d2); \draw[arr] (d2)--node[lbl,right]{yes}(c); \draw[arr] (d2)--node[lbl,above]{no}(ocr);
+\draw[arr] (ocr.south) |- (c.east);
+\draw[arr] (c)--(g); \draw[arr] (g)--(h); \draw[arr] (h)--(i); \draw[arr] (i)--(j); \draw[arr] (j)--(k); \draw[arr] (k)--(e);
+\end{tikzpicture}
+\caption{Flowchart of the extraction pipeline}
+\label{fig:flowextract}
+\end{figure}

@@ -1,0 +1,53 @@
+\begingroup\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{@{}p{1.15cm}p{1.2cm}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{2.1cm}p{0.6cm}>{\raggedright\arraybackslash}p{2.3cm}@{}}
+\caption{Test case specification}\label{tab:testcases}\\
+\toprule
+\textbf{TC} & \textbf{Req.} & \textbf{Scenario (input)} & \textbf{Expected result} & \textbf{Actual} & \textbf{P/F} & \textbf{Evidence}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{TC} & \textbf{Req.} & \textbf{Scenario (input)} & \textbf{Expected result} & \textbf{Actual} & \textbf{P/F} & \textbf{Evidence}\\
+\midrule
+\endhead
+TC-01 & FR-01 & Wrong password vs unknown user (Two bad logins) & Same generic error & As expected & P & test\_\allowbreak{}auth\\
+TC-02 & FR-01 & Refresh-token reuse (Reuse rotated token) & Whole family revoked, 401 & As expected & P & test\_\allowbreak{}auth\\
+TC-03 & FR-02 & Role escalation (Student sends \texttt{roles:[ADMIN]}) & Ignored; admin APIs 403 & As expected & P & test\_\allowbreak{}auth\\
+TC-04 & FR-03 & Wrong file type (Text file named \texttt{.pdf}) & Rejected, nothing stored & As expected & P & test\_\allowbreak{}extraction\\
+TC-05 & FR-03 & Upload does not change primary (Upload new file) & Primary unchanged & As expected & P & test\_\allowbreak{}uploads\\
+TC-06 & FR-03 & Retry same upload (Same client\_\allowbreak{}request\_\allowbreak{}id twice) & One archive record & As expected & P & test\_\allowbreak{}uploads\\
+TC-07 & FR-04 & Real PDF extraction (10-page college PDF) & $\geq$95\% verified & 452/453 (99.8\%) & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-08 & FR-04 & Stacked lab cell (Cell with A1--A4) & 4 entries, own room/teacher & As expected & P & test\_\allowbreak{}reference\_\allowbreak{}pdf\\
+TC-09 & FR-04 & Noon row typo (``12.15 a.m.\ to 01.15 p.m.'') & 12:15--13:15 with visible note & As expected & P & test\_\allowbreak{}reference\_\allowbreak{}pdf\\
+TC-10 & FR-04 & Scanned PDF (Image-only PDF) & OCR, entries \textsc{Unverified} & As expected & P & test\_\allowbreak{}extraction\\
+TC-11 & FR-05 & No-table PDF (Plain text PDF) & \textsc{Unusable}, cannot be primary & As expected & P & test\_\allowbreak{}extraction\\
+TC-12 & FR-06 & Correction audited (Admin edits room) & Original kept, audit row & As expected & P & test\_\allowbreak{}uploads\\
+TC-13 & FR-07 & Concurrent activation (2 threads activate) & Exactly one default & As expected & P & test\_\allowbreak{}academics\\
+TC-14 & FR-09 & Dashboard = query (Home vs ``next class?'') & Identical entry & As expected & P & test\_\allowbreak{}query\_\allowbreak{}engine\\
+TC-15 & FR-10 & Lab group isolation (SE-A1, Wednesday) & Only A1 labs & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-16 & FR-11 & Lunch per year (SE vs TE ``after lunch'') & 14:15 vs 13:15 from PDF & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-17 & FR-11 & Ambiguous time (``Am I free at 2?'') & Clarification a.m./p.m. & As expected & P & test\_\allowbreak{}query\_\allowbreak{}engine, e2e\\
+TC-18 & FR-11 & Injection text (``'; DROP TABLE \ldots'') & Treated as text; no SQL run & As expected & P & test\_\allowbreak{}query\_\allowbreak{}engine\\
+TC-19 & FR-11 & Cross-domain compare (Q30 question) & UNSUPPORTED, no query executed & As expected & P & test\_\allowbreak{}query\_\allowbreak{}engine\\
+TC-20 & FR-12 & Free rooms on a floor (``free rooms on floor 5 at 10'') & Rooms without overlapping class & As expected & P & test\_\allowbreak{}query\_\allowbreak{}engine\\
+TC-21 & FR-13 & Clashes in real PDF (Real timetable) & Exactly 2 genuine clashes & 2 (SP Fri; 603-2 Tue) & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-22 & FR-14 & IDOR personal (Other user's timetable id) & 404 + audit & As expected & P & test\_\allowbreak{}uploads\\
+TC-23 & FR-15 & Promotion (Preview + confirm) & History kept, new batch & As expected & P & test\_\allowbreak{}academics\\
+TC-24 & FR-15 & Concurrent promotion (2 threads) & One open placement & As expected & P & test\_\allowbreak{}academics\\
+TC-25 & FR-17 & Student without batch (``next class?'') & Setup-required message & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-26 & NFR-04 & Reset code in prod (Production, no SMTP) & Code never in response/log & As expected & P & test\_\allowbreak{}deploy\\
+TC-27 & NFR-03 & Connectivity probe (\texttt{HEAD /}) & 200 (not 405) & As expected & P & test\_\allowbreak{}deploy\\
+TC-28 & NFR-01 & Search latency (50 req/intent) & p50 $<$ 300 ms & 37--47 ms & P & Table~\ref{tab:latency}\\
+TC-29 & NFR-03 & Load (32 clients, 960 req) & 0 wrong answers & 0 & P & Table~\ref{tab:loadresults}\\
+TC-30 & UI & Full student/HOD flow (Browser, real data) & All steps pass & 24/24 & P & college.e2e.mjs\\
+TC-31 & FR-11 & Count with filters (``How many labs do I have this week?'') & Count = distinct lab periods; only labs & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-32 & FR-11 & First/last (``When is my last class on Friday?'') & Same as max end of the Friday listing & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-33 & FR-11 & Day-wise ordering (``Which day is my busiest / finish earliest?'') & Days sorted by classes / finish time & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-34 & FR-02 & ``My labs'' vs another batch (``Show my labs'', ``Show SE-B labs'') & Own lab group for ``my''; SE-B shown when asked & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-35 & FR-11 & Lunch and free periods (``When is lunch break on Monday?'', ``When am I free on Thursday?'') & Own section's lunch (TE 12:15, SE 1:15); gaps between own classes & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-36 & FR-11 & Who teaches / what comes after / which floor (``Who teaches software engineering?'') & Teacher names; next class after; floor of room & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-37 & FR-02 & Open viewing (student asks about SE-B, floor 5, clashes) & Shown to everyone; ``my'' still own batch & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+TC-38 & FR-11 & Short words not read as names (``Which room is my next class in?'') & Next class, not a batch called ``in'' & As expected & P & test\_\allowbreak{}college\_\allowbreak{}seed\\
+\bottomrule
+\end{longtable}
+\endgroup

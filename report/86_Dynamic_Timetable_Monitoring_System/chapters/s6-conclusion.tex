@@ -1,0 +1,41 @@
+\section{Conclusion and Further Work}
+
+\subsection{Conclusion}
+The college timetable is consulted by everyone every day, yet it exists only as a dense PDF with no
+search, no personal view, no version control and no clash checking. \emph{Dynamic Timetable} reads the
+timetable as it is actually published (PDF, scanned image, Excel or Word), extracts every class with its
+source page and verification status, detects clashes, and serves students, professors, the HOD, the
+Principal and the Admin through one app on Android, iPhone and laptop.
+
+On the department's real 10-page timetable the system verified 452 of 453 classes (99.8\%), reduced
+542 raw overlaps to the 2 genuine clashes, and answered plain-English questions in about 40~ms with
+no wrong answers under 32 concurrent clients. A constrained backtracking algorithm resolves
+inconsistent time labels with certainty, a group-sort-sweep detector separates intended overlaps
+from real clashes, and a deterministic compositional planner answers a wide range of questions while
+never generating SQL from user text and asking for clarification instead of guessing. All nine
+objectives were met, and the whole system runs at zero cost on open-source software and a free cloud
+tier.
+
+\subsection{Limitations}
+\begin{itemize}
+\item Extraction accuracy was assessed by verification status and manual checks, not by precision and
+      recall on independently hand-labelled pages.
+\item The load test ran on development hardware, not on the production host.
+\item Some short forms (e.g.\ ``AI'' for an elective) are not recognised yet, and a bare time such as
+      ``at 2'' always asks a.m.\ or p.m.
+\item No Play Store / TestFlight build or push notifications yet.
+\end{itemize}
+
+\subsection{Further Work}
+\begin{enumerate}
+\item Measure per-field precision and recall on hand-labelled timetable pages.
+\item College single sign-on (Google Workspace) instead of separate passwords.
+\item Store builds with push notifications for timetable changes and ``class in 10 minutes''
+      reminders.
+\item ``What changed?'' comparison between two official versions, sent only to affected users.
+\item An optional LLM that \emph{suggests} query plans for unusual phrasings, still checked by the same
+      validator (never free SQL).
+\item Bulk CSV import, room-utilisation analytics for the HOD and Principal, and exam timetables.
+\item Capacity testing on the production host.
+\end{enumerate}
+\newpage

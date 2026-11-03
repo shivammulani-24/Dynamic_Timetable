@@ -1,0 +1,30 @@
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=4mm and 6mm]
+% clients
+\node[ext,minimum width=3.3cm] (android) {Android app};
+\node[ext,minimum width=3.3cm,right=of android] (ios) {iPhone app};
+\node[ext,minimum width=3.3cm,right=of ios] (web) {Laptop browser\\(web build)};
+\node[draw,dashed,rounded corners,fit=(android)(ios)(web),inner sep=6pt,
+      label={[font=\scriptsize\bfseries]above:React Native / Expo client (one TypeScript code base)}] (cl) {};
+% api
+\node[blk,below=13mm of ios,minimum width=12.6cm,minimum height=9mm] (mw) {Middleware: request id, JSON logs, CORS, error envelope, rate limiting};
+\node[blk,below=3mm of mw.south west,anchor=north west,minimum width=2.9cm,minimum height=13mm] (sec) {Security\\JWT $\cdot$ RBAC\\policy};
+\node[blk,right=2mm of sec,minimum width=2.9cm,minimum height=13mm] (routers) {REST routers\\auth, me, timetables,\\search, admin};
+\node[blk,right=2mm of routers,minimum width=3.2cm,minimum height=13mm] (svc) {Services\\context, uploads,\\conflicts, academics};
+\node[blk,right=2mm of svc,minimum width=3cm,minimum height=13mm] (qe) {Query planner\\NLP $\rightarrow$ query plan\\$\rightarrow$ QT01--QT23};
+\node[draw,thick,rounded corners,fit=(mw)(sec)(qe),inner sep=5pt,
+      label={[font=\scriptsize\bfseries,anchor=south west]north west:FastAPI application (stateless, N processes)}] (api) {};
+% bottom
+\node[store,below=16mm of routers,minimum width=3.6cm,minimum height=11mm,font=\small] (db) {PostgreSQL 16\\31 tables};
+\node[blk,below=16mm of qe,minimum width=4cm,minimum height=11mm] (worker) {Background worker\\Extraction pipeline\\(PyMuPDF, Tesseract, Office)};
+\node[store,left=10mm of db,minimum width=3cm,minimum height=11mm,font=\small] (files) {Private file\\storage};
+\draw[darr] (cl.south) -- node[lbl,right]{HTTPS, JSON (REST /api/v1)} (mw.north -| cl.south);
+\draw[darr] (api.south -| db.north) -- node[lbl,right]{SQL (bound params)} (db.north);
+\draw[arr] (worker.west) -- node[lbl,above]{claims jobs} node[lbl,below,font=\tiny]{FOR UPDATE SKIP LOCKED} (db.east);
+\draw[arr] (api.south -| files.north) -- node[lbl,left]{originals} (files.north);
+\draw[arr] (files.south) to[bend right=25] node[lbl,below]{read file} (worker.south);
+\end{tikzpicture}
+\caption{Overall system architecture (block diagram)}
+\label{fig:arch}
+\end{figure}

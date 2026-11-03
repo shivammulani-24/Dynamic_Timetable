@@ -1,0 +1,27 @@
+\begin{algorithm}[H]
+\caption{Resolve a column of time labels}\label{alg:time}
+\begin{algorithmic}[1]
+\Require labels $L_1..L_r$ (top to bottom); each $L_i$ gives start/end hour, minute and optional marker
+\Ensure for each row: (start, end, certain?) or a review flag
+\For{$i \gets 1$ \textbf{to} $r$}
+  \State $O_i \gets \{(s,e) : s \in \textsc{Cand}(L_i.\mathit{start}), e \in \textsc{Cand}(L_i.\mathit{end}), \textsc{Plausible}(s,e)\}$ \Comment{literal markers honoured}
+  \If{$O_i = \emptyset$} $O_i \gets$ readings ignoring markers, flagged \textit{non-literal} \EndIf
+\EndFor
+\State $S \gets \emptyset$
+\Procedure{Walk}{$i, \mathit{prevEnd}, A$}
+  \If{$|S| > 64$} \Return \EndIf \Comment{bound the search}
+  \If{$i > r$} $S \gets S \cup \{A\}$; \Return \EndIf
+  \ForAll{$(s,e) \in O_i$ \textbf{with} $s \geq \mathit{prevEnd}$}
+     \State \Call{Walk}{$i+1, e, A \cdot (s,e)$}
+  \EndFor
+\EndProcedure
+\State \Call{Walk}{$1, 0, \langle\rangle$}
+\For{$i \gets 1$ \textbf{to} $r$}
+  \State $R_i \gets \{A_i : A \in S\}$
+  \If{$|R_i| = 1$ \textbf{and} reading is literal} mark row $i$ \textsc{certain}
+  \ElsIf{$|R_i| = 1$} keep reading, set \texttt{time\_uncertain}, add \texttt{TIME\_LABEL\_INCONSISTENT}
+  \Else{} leave time empty, add \texttt{TIME\_AMBIGUOUS\_AMPM} (entries become \textsc{Incomplete})
+  \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}

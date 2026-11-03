@@ -1,0 +1,21 @@
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max width=\textwidth}
+\begin{tikzpicture}
+\node[proc,minimum size=34mm,font=\small] (sys) {0.0\\Dynamic\\Timetable\\System};
+\node[ext,above left=8mm and 26mm of sys] (stu) {Student};
+\node[ext,above right=8mm and 26mm of sys] (prof) {Professor};
+\node[ext,below left=8mm and 26mm of sys] (adm) {Admin};
+\node[ext,below right=8mm and 26mm of sys] (hod) {HOD /\\Principal};
+\draw[arr] (stu.east) to[bend left=10] node[lbl,above,sloped]{questions, personal file} (sys.north west);
+\draw[arr] (sys.west) to[bend left=10] node[lbl,below,sloped]{schedule, answers} (stu.south);
+\draw[arr] (prof.west) to[bend right=10] node[lbl,above,sloped]{questions} (sys.north east);
+\draw[arr] (sys.east) to[bend right=10] node[lbl,below,sloped]{schedule, free rooms} (prof.south);
+\draw[arr] (adm.east) to[bend right=10] node[lbl,below,sloped]{timetable file, corrections} (sys.south west);
+\draw[arr] (sys.west) to[bend right=30] node[lbl,above,sloped]{validation summary} (adm.north);
+\draw[arr] (sys.south east) to[bend left=10] node[lbl,below,sloped]{conflicts, room usage} (hod.west);
+\end{tikzpicture}
+\end{adjustbox}
+\caption{DFD level 0 (context diagram)}
+\label{fig:dfd0}
+\end{figure}

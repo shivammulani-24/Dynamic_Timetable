@@ -1,0 +1,23 @@
+\begin{table}[H]
+\centering
+\caption{Comparison of existing approaches with the proposed system}
+\label{tab:compare}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{3.6cm}*{7}{>{\centering\arraybackslash}p{1.6cm}}@{}}
+\toprule
+\textbf{Criterion} & \textbf{Manual PDF} & \textbf{FET / UniTime / aSc} & \textbf{Tabula / Camelot} & \textbf{Calendar apps} & \textbf{ERP module} & \textbf{LLM text-to-SQL} & \textbf{Proposed}\\
+\midrule
+Reads published PDF/photo & -- & No & Partly & No & No & No & \textbf{Yes}\\
+Timetable semantics (labs, legends) & Human & Yes & No & No & Yes & Depends & \textbf{Yes}\\
+Role-based views & No & Limited & No & No & Yes & No & \textbf{Yes (5)}\\
+Plain-English questions & No & No & No & Limited & No & Yes & \textbf{Yes (composed plans)}\\
+Reproducible, injection-safe answers & -- & -- & -- & -- & Yes & No & \textbf{Yes}\\
+Clash detection & No & At creation & No & No & Sometimes & No & \textbf{Yes, after publication}\\
+Version archive & Ad hoc & Files & No & No & Sometimes & No & \textbf{Yes, audited}\\
+Personal timetable kept private & -- & No & No & Yes & No & No & \textbf{Yes}\\
+Cost & Free & Free/Paid & Free & Free & Paid & Paid API & \textbf{Free (open source)}\\
+Mobile use & PDF viewer & Limited & No & Yes & Varies & Varies & \textbf{Android, iOS, web}\\
+\bottomrule
+\end{tabular}
+\end{table}

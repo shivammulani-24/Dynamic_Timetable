@@ -1,0 +1,15 @@
+\begin{algorithm}[H]
+\caption{Build a query plan from the parsed question}\label{alg:plan}
+\begin{algorithmic}[1]
+\Require parsed question $p$, specialised operation $S$ recognised by the rule cascade (or $\bot$)
+\Ensure plan $P$
+\If{$S$ is pinned (archives, primary, cross-domain, time-until)} \Return $P(S)$ \EndIf
+\State $k \gets$ \textsc{Lab} / \textsc{Lecture} from words (``lab'', ``practical'' / ``lecture'', ``theory''); $\bot$ otherwise
+\State $w \gets$ window from times and words (between, before, after, after lunch, at)
+\State $o \gets$ \textsc{Total\_Hours} (``total hours'') $\vee$ \textsc{Count} (``how many'') $\vee$ \textsc{Per\_Day} (``which day'', ``busiest'') $\vee$ \textsc{Next} / \textsc{First} / \textsc{Last} $\vee$ \textsc{Exists} (``any lab'')
+\If{$o = $ \textsc{Per\_Day}} choose metric (finish $\rightarrow$ \textsc{Last\_End}, start $\rightarrow$ \textsc{First\_Start}, else classes/hours) and sort (most/least, earliest/latest) \EndIf
+\If{$o = $ \textsc{Count} and $S$ returns rooms/professors/courses} \Return $P(\textsc{Count}$ over $S)$ \EndIf
+\If{$o = \bot$ and $k = \bot$ and $w \neq$ \textsc{Before}} \Return $P(S)$ \Comment{specialised operation unchanged} \EndIf
+\State \Return composed $P(o \text{ or } \textsc{List}, k, w, \text{filters}, \text{when}, \text{sort})$
+\end{algorithmic}
+\end{algorithm}

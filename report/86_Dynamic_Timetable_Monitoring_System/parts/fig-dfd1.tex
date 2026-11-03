@@ -1,0 +1,35 @@
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max width=\textwidth}
+\begin{tikzpicture}
+\node[ext] (adm) at (0,0) {Admin};
+\node[proc] (p1) at (3.4,0) {1.0\\Receive \&\\archive};
+\node[proc] (p2) at (6.9,0) {2.0\\Extract \&\\validate};
+\node[proc] (p3) at (10.6,0) {3.0\\Review \&\\activate};
+\node[store] (d1) at (5.15,2.3) {D1 Uploaded files};
+\node[store] (d3) at (0,-3.4) {D3 Users, roles,\\preferences};
+\node[proc] (p4) at (3.4,-3.4) {4.0\\Resolve\\context};
+\node[proc] (p5) at (6.9,-3.4) {5.0\\Answer query\\(query plan\\$\rightarrow$ SQL)};
+\node[store] (d2) at (10.6,-3.4) {D2 Timetables\\\& entries};
+\node[proc] (p6) at (10.6,-6.6) {6.0\\Detect\\conflicts};
+\node[ext] (hod) at (14.4,-6.6) {HOD /\\Principal};
+\node[ext] (usr) at (6.9,-6.9) {Student /\\Professor};
+\draw[arr] (adm) -- node[lbl,above]{file} (p1);
+\draw[arr] (p1) -- node[lbl,above]{job} (p2);
+\draw[arr] (p1) |- node[lbl,pos=0.75,above]{original} (d1.west);
+\draw[arr] (d1.east) -| (p2);
+\draw[arr] (p2) -- node[lbl,above]{entries} (p3);
+\draw[arr] (adm.north) -- ++(0,3.4) -| node[lbl,pos=0.25,above]{corrections, activation} (p3.north);
+\draw[arr] (p3) -- node[lbl,right]{verified data} (d2);
+\draw[arr] (d3) -- (p4);
+\draw[arr] (p4) -- node[lbl,above]{context} (p5);
+\draw[arr] (d2) -- node[lbl,above]{entries} (p5);
+\draw[arr] (d2) -- node[lbl,right]{entries} (p6);
+\draw[arr] (p6) -- node[lbl,above]{clashes} (hod);
+\draw[arr] ([xshift=-5mm]usr.north) -- node[lbl,left]{question} ([xshift=-5mm]p5.south);
+\draw[arr] ([xshift=5mm]p5.south) -- node[lbl,right]{answer} ([xshift=5mm]usr.north);
+\end{tikzpicture}
+\end{adjustbox}
+\caption{DFD level 1}
+\label{fig:dfd1}
+\end{figure}

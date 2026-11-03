@@ -1,0 +1,21 @@
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.48\textwidth,height=6cm,xmode=log,log basis x=2,xtick={1,2,4,8,16,32},
+  xticklabels={1,2,4,8,16,32},xlabel={Concurrent clients},ylabel={Throughput (req/s)},
+  ymin=0,ymax=70,grid=major,title={\small Throughput}]
+\addplot[thick,mark=*,color=spitblue] coordinates {(1,18.6)(2,25.4)(4,46.5)(8,60.4)(16,54.1)(32,57.4)};
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[width=0.48\textwidth,height=6cm,xmode=log,log basis x=2,xtick={1,2,4,8,16,32},
+  xticklabels={1,2,4,8,16,32},xlabel={Concurrent clients},ylabel={Latency (ms)},
+  ymin=0,grid=major,legend pos=north west,legend style={font=\scriptsize},title={\small Latency}]
+\addplot[thick,mark=*,color=spitblue] coordinates {(1,49)(2,75)(4,64)(8,90)(16,183)(32,410)};
+\addplot[thick,mark=square*,color=orange] coordinates {(1,57)(2,90)(4,90)(8,141)(16,354)(32,635)};
+\legend{p50,p95}
+\end{axis}
+\end{tikzpicture}
+\caption{Throughput and latency under increasing concurrent load (measured)}
+\label{fig:load}
+\end{figure}

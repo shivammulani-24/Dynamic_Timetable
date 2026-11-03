@@ -1,0 +1,23 @@
+\begin{figure}[H]
+\centering
+\begin{adjustbox}{max width=\textwidth}
+\begin{tikzpicture}[uc/.style={draw,ellipse,thick,fill=boxfill,font=\scriptsize,align=center,minimum width=33mm,minimum height=7mm,inner sep=1pt},
+  actor/.style={font=\small,align=center}]
+\node[draw,thick,rounded corners,minimum width=8.6cm,minimum height=12.3cm,label={[font=\small\bfseries]above:Dynamic Timetable}] (b) at (0,0) {};
+\foreach \n/\t/\y in {u1/Sign in/5.4, u2/View dashboard \& week/4.5, u3/Ask question (NL search)/3.6, u4/Find free rooms/2.7,
+  u5/Manage personal timetable/1.8, u6/View own teaching \& free time/0.9, u7/Review conflicts/0, u8/View floor activity/-0.9,
+  u9/Upload official timetable/-1.8, u10/Review \& correct entries/-2.7, u11/Activate timetable/-3.6, u12/Manage master data \& users/-4.5, u13/Promote students/-5.4}
+  { \node[uc] (\n) at (0,\y) {\t}; }
+\node[actor] (s) at (-6.2,4) {\stick\\\textbf{Student}};
+\node[actor] (p) at (-6.2,0.3) {\stick\\\textbf{Professor}};
+\node[actor] (h) at (6.2,0.6) {\stick\\\textbf{HOD /}\\\textbf{Principal}};
+\node[actor] (a) at (6.2,-3.6) {\stick\\\textbf{Admin}};
+\foreach \u in {u1,u2,u3,u4,u5} \draw (s.east) -- (\u.west);
+\foreach \u in {u1,u2,u3,u4,u6} \draw (p.east) -- (\u.west);
+\foreach \u in {u1,u2,u7,u8} \draw (h.west) -- (\u.east);
+\foreach \u in {u1,u9,u10,u11,u12,u13} \draw (a.west) -- (\u.east);
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Use case diagram}
+\label{fig:usecase}
+\end{figure}

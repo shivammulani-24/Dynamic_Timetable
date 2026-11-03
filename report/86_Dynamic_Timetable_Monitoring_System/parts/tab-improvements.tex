@@ -1,0 +1,19 @@
+\begin{table}[H]
+\centering
+\caption{Improvements incorporated before the ESE}
+\label{tab:improvements}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}XX@{}}
+\toprule
+\textbf{Area} & \textbf{Before} & \textbf{After (current version)}\\
+\midrule
+Question coverage & A fixed list of about 30 question types; counts, ``busiest day'' or ``last lab on Friday'' were refused & Compositional query planner: 17 operations combined with filters, dates, 6 time windows and sorting (Section~5, TC-31--TC-36)\\
+Teacher names & Only faculty codes such as AVN were understood & Code, first name, surname or ``Nimkar sir'' all resolve to the same person; spelling variants sharing one code are merged\\
+Subject names & Exact subject names only & Partial words and one-letter typos (e.g.\ the PDF's own ``Discreate'') are matched\\
+Viewing other timetables & Students saw only their own batch & Anyone can view any teacher's, batch's or room's official timetable through a picker; personal timetables stay private (TC-37)\\
+Lunch and free time & Not answerable & Each section's own lunch and the free gaps between one's classes (TC-35)\\
+Short words in questions & ``in'', ``at'' or ``is'' were sometimes read as a batch or a name & Stop-word lists prevent these misreadings (TC-38)\\
+Explainability & Only the answer was shown & Every answer carries the query plan that produced it\\
+\bottomrule
+\end{tabularx}
+\end{table}

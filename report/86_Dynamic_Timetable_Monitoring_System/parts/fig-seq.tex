@@ -1,0 +1,26 @@
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  ll/.style={draw,thick,fill=boxfill,font=\scriptsize,minimum width=19mm,minimum height=6mm},
+  msg/.style={-{Stealth},thick,font=\scriptsize},
+  ret/.style={-{Stealth},dashed,font=\scriptsize}]
+\foreach \x/\n/\t in {0/c/App, 2.6/a/API router, 5.2/s/Security, 7.8/x/Context, 10.4/q/Query engine, 13.0/d/PostgreSQL}{
+  \node[ll] (\n) at (\x,0) {\t};
+  \draw[dashed,gray] (\x,-0.3) -- (\x,-9.3);}
+\draw[msg] (0,-0.9) -- node[above]{POST /search \{query\}} (2.6,-0.9);
+\draw[msg] (2.6,-1.6) -- node[above]{verify JWT} (5.2,-1.6);
+\draw[msg] (5.2,-2.2) -- node[above]{load user+roles} (13,-2.2);
+\draw[ret] (13,-2.7) -- node[above]{principal} (5.2,-2.7);
+\draw[msg] (2.6,-3.4) -- node[above]{resolve(domain, timetable, tz)} (7.8,-3.4);
+\draw[msg] (7.8,-4.0) -- node[above]{preferences, settings} (13,-4.0);
+\draw[ret] (7.8,-4.6) -- node[above]{context} (2.6,-4.6);
+\draw[msg] (2.6,-5.3) -- node[above]{search(ctx, text)} (10.4,-5.3);
+\draw[thick] (10.4,-5.6) -- ++(0.6,0) -- node[right,font=\scriptsize,align=left]{parse, classify,\\resolve entities,\\validate params} ++(0,-0.9) -- ++(-0.6,0);
+\draw[msg] (10.4,-7.0) -- node[above]{template QTnn (bound params)} (13,-7.0);
+\draw[ret] (13,-7.6) -- node[above]{rows} (10.4,-7.6);
+\draw[ret] (10.4,-8.2) -- node[above]{envelope: status, results, warnings} (2.6,-8.2);
+\draw[ret] (2.6,-8.9) -- node[above]{200 / 422 clarification} (0,-8.9);
+\end{tikzpicture}
+\caption{Sequence diagram for a natural-language search}
+\label{fig:seq}
+\end{figure}

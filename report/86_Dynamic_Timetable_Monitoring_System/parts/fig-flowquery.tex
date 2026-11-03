@@ -1,0 +1,25 @@
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=4.5mm]
+\node[term] (s) {Question text};
+\node[blk,below=of s] (p) {Parse: dates, times, entities};
+\node[dec,below=of p] (x) {cross-\\domain?};
+\node[blk,right=12mm of x,fill=red!10] (x1) {UNSUPPORTED (Q30)};
+\node[blk,below=of x] (c) {Resolve context (server)};
+\node[blk,below=of c] (v) {Scan vocabulary of this timetable};
+\node[dec,below=of v] (k) {plan\\built?};
+\node[blk,right=12mm of k,fill=red!10] (k1) {UNSUPPORTED +\\examples};
+\node[dec,below=of k] (r) {allowed for\\role/domain?};
+\node[blk,right=12mm of r,fill=red!10] (r1) {Refuse (reason)};
+\node[dec,below=of r] (m) {params\\complete?};
+\node[blk,right=12mm of m,fill=yellow!20] (m1) {CLARIFICATION\\(choices)};
+\node[blk,below=of m] (t) {Run template QTnn (bound params, role scope)};
+\node[term,below=of t] (e) {OK / NO\_MATCH / DATA\_UNVERIFIED};
+\draw[arr] (s)--(p); \draw[arr] (p)--(x); \draw[arr] (x)--node[lbl,above]{yes}(x1); \draw[arr] (x)--node[lbl,right]{no}(c);
+\draw[arr] (c)--(v); \draw[arr] (v)--(k); \draw[arr] (k)--node[lbl,above]{no}(k1); \draw[arr] (k)--node[lbl,right]{yes}(r);
+\draw[arr] (r)--node[lbl,above]{no}(r1); \draw[arr] (r)--node[lbl,right]{yes}(m);
+\draw[arr] (m)--node[lbl,above]{no}(m1); \draw[arr] (m)--node[lbl,right]{yes}(t); \draw[arr] (t)--(e);
+\end{tikzpicture}
+\caption{Flowchart of the query engine}
+\label{fig:flowquery}
+\end{figure}

@@ -1,0 +1,33 @@
+\begingroup\small
+\begin{longtable}{@{}p{1.1cm}p{3.4cm}p{6.2cm}p{4.9cm}@{}}
+\caption{Functional requirements}\label{tab:fr}\\
+\toprule
+\textbf{ID} & \textbf{Requirement} & \textbf{Input $\rightarrow$ processing $\rightarrow$ output} & \textbf{Acceptance criterion}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Requirement} & \textbf{Input $\rightarrow$ processing $\rightarrow$ output} & \textbf{Acceptance criterion}\\
+\midrule
+\endhead
+FR-01 & Sign-in with college e-mail and password & E-mail, password $\rightarrow$ Argon2id verify, account-status check, rate limit $\rightarrow$ 15-min access JWT + rotating refresh token & Wrong e-mail or password gives the same generic error; suspended account refused\\
+FR-02 & Five roles enforced on the server & Request + token $\rightarrow$ roles loaded from \texttt{USER\_ROLE} on every request $\rightarrow$ allowed / 403 & No endpoint trusts a client-sent role; role change invalidates old tokens\\
+FR-03 & Upload a timetable (PDF, image, XLSX/XLS, CSV, DOCX/DOC) & File $\rightarrow$ extension allow-list, content-signature check, size/page limits, private storage, SHA-256, job queued $\rightarrow$ archive record (\textsc{Queued}) & Upload never changes the primary timetable; retries with the same request id are idempotent\\
+FR-04 & Extract class entries & Stored file $\rightarrow$ worker: page inspection, table/OCR extraction, sections, time rows, cell parsing, legend expansion, mapping $\rightarrow$ entries with provenance and status & Real college PDF: $\geq 95\%$ of class entries \textsc{Verified}; nothing guessed silently\\
+FR-05 & Validate and classify the timetable & Entries $\rightarrow$ checks (missing fields, duplicates, time consistency, overlaps) $\rightarrow$ \textsc{Ready} / \textsc{Needs Review} / \textsc{Unusable} / \textsc{Failed} & Unusable timetables cannot become primary\\
+FR-06 & Review and correct entries & Admin edits $\rightarrow$ before/after snapshot in \texttt{ENTRY\_CORRECTION}, audit row $\rightarrow$ corrected entry & Original value always recoverable; entry becomes \textsc{Verified} only by explicit reviewer action\\
+FR-07 & Activate the official timetable & Admin action $\rightarrow$ settings row locked, primary switched, version incremented, users notified $\rightarrow$ new primary & Concurrent activations serialise; next request sees the new primary\\
+FR-08 & Archives and selection & User picks an older version $\rightarrow$ selection remembered per domain $\rightarrow$ searches run on that archive with a banner & Archive browsing never mixes domains\\
+FR-09 & Role dashboard & Login $\rightarrow$ current class, next class with countdown, free periods, later today $\rightarrow$ cards & Dashboard and typed questions give identical answers\\
+FR-10 & Weekly timetable view & Day selection $\rightarrow$ entries for the user's batch and lab group (and parent division) $\rightarrow$ list with room/teacher & Lab group A1 does not see A2's labs\\
+FR-11 & Natural-language search & English text $\rightarrow$ parse, build a query plan (operation, filters, lab/lecture, date/week, time window, sort), resolve entities in this timetable, validate, compile with role scope $\rightarrow$ result envelope & No SQL generated from text; counts, first/last and day-wise questions answered; ambiguous a.m./p.m., date or entity asks for clarification\\
+FR-12 & Free-room and professor-availability search & Time/date, optional floor $\rightarrow$ room inventory minus scheduled rooms $\rightarrow$ free rooms / free periods & Uncertain entries treated as busy; incomplete inventory reported\\
+FR-13 & Conflict detection & Timetable $\rightarrow$ interval overlap per professor, room, batch, excluding parallel lab groups and electives $\rightarrow$ conflict list & Real PDF: exactly the 2 genuine clashes reported\\
+FR-14 & Personal timetables & Own upload $\rightarrow$ same pipeline, stored in personal tables $\rightarrow$ private timetable & Other users (including Admin) get 404 for it\\
+FR-15 & Academic promotion & Admin preview + confirm $\rightarrow$ transactional update of placements with history $\rightarrow$ students moved to next year/batch & All-or-nothing; history preserved; concurrent promotions cannot double-apply\\
+FR-16 & Master data management & Admin forms $\rightarrow$ validated CRUD of departments, years, batches, courses, rooms, aliases $\rightarrow$ records & Duplicates and invalid references rejected\\
+FR-17 & User and account management & Admin $\rightarrow$ register student/staff, roles, suspend, issue access code $\rightarrow$ accounts & Suspension revokes sessions immediately\\
+FR-18 & Notifications & Activation and job completion $\rightarrow$ in-app notification (push in store builds) $\rightarrow$ notification list & Users see only their own notifications\\
+FR-19 & Audit log & Sensitive actions $\rightarrow$ append-only audit events $\rightarrow$ Admin audit screen & Uploads, activations, corrections, promotions, access denials logged\\
+\bottomrule
+\end{longtable}
+\endgroup

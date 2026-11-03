@@ -1,0 +1,22 @@
+\begin{table}[H]
+\centering
+\caption{Non-functional requirements}
+\label{tab:nfr}
+\small
+\begin{tabularx}{\textwidth}{@{}p{1.3cm}p{2.7cm}X@{}}
+\toprule
+\textbf{ID} & \textbf{Category} & \textbf{Requirement}\\
+\midrule
+NFR-01 & Performance & Median search response $<300$~ms for one user; extraction of a 10-page PDF $<10$~s.\\
+NFR-02 & Scalability & Stateless API that scales horizontally by adding processes; workers scale independently.\\
+NFR-03 & Availability, reliability & Correct answers under concurrent use; idempotent uploads; failed jobs retried up to 3 times; health endpoint for the platform.\\
+NFR-04 & Security & Argon2id passwords, JWT + refresh-token rotation and reuse detection, RBAC, IDOR protection, rate limiting, parameterised SQL only, secrets never in the app bundle.\\
+NFR-05 & Privacy & Personal timetables visible only to their owner; no free text in logs.\\
+NFR-06 & Usability, accessibility & Readable in light and dark mode; large tap targets; plain-English questions; clarifications with tappable choices.\\
+NFR-07 & Maintainability & Modular layers (API, services, query, extraction); typed code (Pydantic, TypeScript strict); automated tests; documented decisions.\\
+NFR-08 & Portability & One code base for Android, iOS and web; Docker image for any Linux host.\\
+NFR-09 & Resource utilisation & One API worker $<300$~MB RAM; database $<50$~MB for one institute's timetables.\\
+NFR-10 & Auditability & Every entry keeps raw text, page, parser version and status; every correction keeps before/after.\\
+\bottomrule
+\end{tabularx}
+\end{table}

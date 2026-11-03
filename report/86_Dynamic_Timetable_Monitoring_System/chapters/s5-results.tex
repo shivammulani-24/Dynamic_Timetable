@@ -1,0 +1,73 @@
+\section{Results and Discussion}
+
+\subsection{Implementation}
+The back end has about 10.5k lines of Python and the app about 5.5k lines of strict TypeScript. The
+code is in the project's Git repository (\url{\RepoURL}). Work was divided by module as shown in
+Table~\ref{tab:contrib}.
+\input{parts/tab-contrib.tex}
+
+\subsection{Screenshots}
+Figures~\ref{fig:realpdf}--\ref{fig:laptop} show the real input and the running app on a phone and a
+laptop.
+\input{parts/fig-screens.tex}
+
+\subsection{Extraction Results}
+The real 10-page PDF produced 570 rows: 453 classes, of which \textbf{452 were verified (99.8\%)} and
+one was \textsc{Incomplete} (an M.Tech.\ row with no printed time, flagged instead of guessed), plus
+breaks and activities. All 10 pages were parsed and 46 batches, 38 courses, 52 faculty and 42 rooms
+were recognised. Table~\ref{tab:extractperf} gives the extraction time.
+\input{parts/tab-extractperf.tex}
+
+\subsection{Clash Detection Results}
+A naive pairwise check reported 542 overlaps, almost all intended (parallel lab batches, electives,
+combined sessions). The intended-overlap rules reduced this to 25 and then to exactly \textbf{2
+genuine clashes} (Figure~\ref{fig:conflictbar}), both confirmed by hand in the PDF:
+(1) \emph{Friday 2:15--3:15}, Prof.\ Sushama Pande is assigned to SE-B in 609 and SE-C's Data Science
+lab in 606-4; (2) \emph{Tuesday 2:15--3:15}, room 603-2 is used by a B.E.\ elective and a T.E.\ lab.
+\input{parts/fig-conflictbar.tex}
+
+\subsection{Query Results and Performance}
+Questions are answered in 37--47~ms (median) for a single user (Table~\ref{tab:latency}). Under load,
+throughput peaks at about 60 requests per second with 8 parallel clients, and even at 32 clients every
+answer was correct (Table~\ref{tab:loadresults}, Figure~\ref{fig:load}). The API worker uses about
+115~MB of memory and the whole database is 12~MB.
+\input{parts/tab-latency.tex}
+\input{parts/tab-load.tex}
+\input{parts/fig-load.tex}
+
+\subsection{Testing}
+179 back-end tests run against a real PostgreSQL database, the app has 20 Jest tests and compiles
+under strict TypeScript, and 45 end-to-end checks run against the live API; all pass.
+Table~\ref{tab:testcases} lists the main test cases.
+\input{parts/tab-testcases.tex}
+
+\subsection{Comparative Analysis}
+Compared with the existing approaches in Table~\ref{tab:compare}, the proposed system is the only one
+that reads the published timetable and also answers questions with reproducible, injection-safe
+results. Table~\ref{tab:objectives} maps each objective to its evidence.
+\input{parts/tab-objectives.tex}
+
+\subsection{Improvements Incorporated after Review}
+The following improvements were made after the project reviews and are part of the version
+demonstrated at the ESE (Table~\ref{tab:improvements}). Each one is covered by automated tests.
+\input{parts/tab-improvements.tex}
+
+\subsection{Scenario-Based Challenges}
+Table~\ref{tab:scenarios} lists realistic situations the system can face in a college and how it
+handles each one; every row is backed by a test case or a measured result.
+\input{parts/tab-scenarios.tex}
+
+\subsection{Discussion}
+\begin{itemize}
+\item \textbf{Real data differs from specifications.} Most extraction work went into conventions found
+      only in the real PDF: the mislabelled noon row, codes missing from legends, LLC slots and the
+      combined B.E.\ page. Testing on the real document from the start was decisive.
+\item \textbf{Honest uncertainty builds trust.} Marking the one entry without a time as
+      \textsc{Incomplete}, instead of guessing, kept every automatic answer correct.
+\item \textbf{The source document itself had errors.} The two clashes are real errors in the
+      published timetable, so the system already adds value for the timetable committee.
+\item \textbf{Rules work here if they compose.} A fixed list of question types was limiting; composing
+      rules into a query plan removed most of that limit while keeping exact answers in about 40~ms,
+      at no API cost and with no injection risk.
+\end{itemize}
+\newpage
